@@ -59,7 +59,7 @@ def train_for_knowledge_injection():
 
     dataset = load_dataset("yahma/alpaca-cleaned", split = "train")
     dataset = dataset.map(formatting_prompts_func, batched = True,)
-    # dataset = dataset.select(range(2_000))
+    dataset = dataset.select(range(2_000))
 
     from trl import SFTTrainer
     from transformers import TrainingArguments
