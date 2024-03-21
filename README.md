@@ -70,6 +70,11 @@ Since we're working with very large files ~5GB for each model weight, we need `g
     ```
 3. Huggingface Credentials
     - Same way to authenticate yourself in GitHub.
+    - An extra step to add key to agent:
+        ```
+        ssh-add ~/.ssh/{KEY}
+        ```
+        You have `id_ed25519` and `id_ed25519.pub` -- make sure to select the PRIVATE KEY, the one WITHOUT the `.pub`
 4. Usual add, commit, push
     ```
     git add . && git commit -m "blah"
