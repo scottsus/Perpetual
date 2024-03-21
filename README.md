@@ -41,7 +41,8 @@ A Mamba model instruction-tuned using the [yamha/alpaca-cleaned](https://hugging
         ```
 4. Clone repository
     ```
-    git clone git@hf.co:scottsus/mamba-2.8b-custom
+    git clone https://huggingface.co/scottsus/mamba-2.8b-custom
+    # git clone git@hf.co/scottsus/mamba-2.8b-custom if you're a repo owner
     ```
 5. Install requirements
     ```
