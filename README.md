@@ -12,28 +12,28 @@ A Mamba model instruction-tuned using the [yamha/alpaca-cleaned](https://hugging
 2. Verify machine is of the following type:
     - Check distro
         ```
-        $ cat /etc/os-release # Ubuntu 22.04.3
+        cat /etc/os-release # Ubuntu 22.04.3
         ```
     - Check architecture
         ```
-        $ uname -m            # x86_64
+        uname -m            # x86_64
         ```
     - Check NVIDIA GPU
         ```
-        $ nvidia-smi          # table of GPUs
+        nvidia-smi          # table of GPUs
         ```
 3. Check for nvcc using `nvcc -V`, if exists skip this step
     - Install nvcc
         ```
-        $ wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-        $ sudo dpkg -i cuda-keyring_1.1-1_all.deb
-        $ sudo apt-get update
-        $ sudo apt-get -y install cuda-toolkit-12-4
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+        sudo dpkg -i cuda-keyring_1.1-1_all.deb
+        sudo apt-get update
+        sudo apt-get -y install cuda-toolkit-12-4
         ```
     - Set to PATH
         ```
-        $ export PATH=/usr/local/cuda/bin:$PATH
-        $ export CUDA_HOME=/usr/local/cuda
+        export PATH=/usr/local/cuda/bin:$PATH
+        export CUDA_HOME=/usr/local/cuda
         ```
     - Verify nvcc existence
         ```
