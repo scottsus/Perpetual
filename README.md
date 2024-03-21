@@ -10,8 +10,18 @@ A Mamba model instruction-tuned using the [yamha/alpaca-cleaned](https://hugging
 
 1. Use a GPU with >= 60GB RAM and 60GB disk size
 2. Verify machine is of the following type:
-    - `$ cat /etc/os-release`: Ubuntu 22.04.3
-    - `$ uname -m`: x86_64
+    - Check distro
+        ```
+        $ cat /etc/os-release # Ubuntu 22.04.3
+        ```
+    - Check architecture
+        ```
+        $ uname -m            # x86_64
+        ```
+    - Check NVIDIA GPU
+        ```
+        $ nvidia-smi          # table of GPUs
+        ```
 3. Check for nvcc using `nvcc -V`, if exists skip this step
     - Install nvcc
         ```
@@ -29,11 +39,38 @@ A Mamba model instruction-tuned using the [yamha/alpaca-cleaned](https://hugging
         ```
         nvcc -V
         ```
-4. Install requirements
+4. Clone repository
+    ```
+    git clone git@hf.co:scottsus/mamba-2.8b-custom
+    ```
+5. Install requirements
     ```
     pip install -r requirements.txt
     ```
-5. Run training
+6. Run training
     ```
     python main.py
+    ```
+
+## Save Model Weights
+
+Prerequisite: Huggingface account.
+
+Since we're working with very large files ~5GB for each model weight, we need `git LFS` to help us.
+
+1. Install git LFS
+    ```
+    sudo apt install git-lfs
+    git lfs install
+    ```
+2. Enable large files
+    ```
+    huggingface-cli lfs-enable-largefiles .
+    ```
+3. Huggingface Credentials
+    - Same way to authenticate yourself in GitHub.
+4. Usual add, commit, push
+    ```
+    git add . && git commit -m "blah"
+    git push
     ```
