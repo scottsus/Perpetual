@@ -3,7 +3,7 @@ from trl import SFTTrainer
 from transformers import TrainingArguments
 
 def begin_training(
-    model, tokenizer, dataset, model_weights_path,
+    model, tokenizer, dataset,
 
     # Hyperparameters
     max_seq_len = 2048,
@@ -26,7 +26,7 @@ def begin_training(
         model=model,
         tokenizer=tokenizer,
         train_dataset=dataset,
-        max_seq_len=max_seq_len,
+        max_seq_length=max_seq_len,
         dataset_text_field=dataset_text_field,
         dataset_num_proc=dataset_num_proc,
         packing=packing,
@@ -46,4 +46,4 @@ def begin_training(
     )
 
     trainer.train()
-    torch.save(model.state_dict(), model_weights_path)
+

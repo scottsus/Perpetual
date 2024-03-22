@@ -3,18 +3,19 @@ import torch
 from transformers import MambaForCausalLM, AutoTokenizer
 from datasets import load_dataset
 from ..utils.names import (
-    BASE_HF_MODEL, INSTRUCT_DATASET_NAME, INSTRUCT_MODEL_WEIGHTS_FILE
+    BASE_HF_MODEL, INSTRUCT_DATASET_NAME, INSTRUCT_MODEL_HF_NAME
 )
 from ..utils.prompt import alpaca_prompt as prompt
 from ..utils.train import begin_training
 
 def begin_instruction_tuning():
-    if os.path.exists(INSTRUCT_MODEL_WEIGHTS_FILE):
-        print(f"Model already trained, weights found in `{INSTRUCT_MODEL_WEIGHTS_FILE}`")
-        return
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {torch.cuda.current_device()}")
+
+    model_checkpoint = BASE_HF_MODEL
+    model = MambaForCausalLM.from_pretrained(model_checkpoint)
+    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+    model.to(device)
 
     EOS_TOKEN = tokenizer.eos_token
     def formatting_prompts_func(examples):
@@ -32,13 +33,9 @@ def begin_instruction_tuning():
     dataset = dataset.map(formatting_prompts_func, batched=True)
     print(f"Loaded dataset: {dataset}")
 
-    model_checkpoint = BASE_HF_MODEL
-    model = MambaForCausalLM.from_pretrained(model_checkpoint)
-    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-    model.to(device)
-
-    begin_training(model, tokenizer, dataset, INSTRUCT_MODEL_WEIGHTS_FILE)
-    print(f"✅ Instruction-tuning success, saved weights in `{INSTRUCT_MODEL_WEIGHTS_FILE}`")
+    begin_training(model, tokenizer, dataset)
+    model.push_to_hub(INSTRUCT_MODEL_HF_NAME)
+    print(f"✅ Instruction-tuning success, find the model on `{INSTRUCT_MODEL_HF_NAME}`")
 
 if __name__ == "__main__":
     begin_instruction_tuning()
