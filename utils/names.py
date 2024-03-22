@@ -1,0 +1,5 @@
+BASE_HF_MODEL = "state-spaces/mamba-2.8b-hf"
+INSTRUCT_DATASET_NAME = "yahma/alpaca-cleaned"
+INSTRUCT_MODEL_WEIGHTS_FILE = "scottsus_mamba-2.8b-instruct.pt"
+FINETUNE_DATASET_NAME = "mark-arts/opencurriculumv0"
+FINETUNE_MODEL_WEIGHTS_FILE = "scottsus_mamba-2.8b-instruct-custom.pt"
