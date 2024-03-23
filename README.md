@@ -42,7 +42,7 @@ A Mamba model instruction-tuned using the [yamha/alpaca-cleaned](https://hugging
 4. Clone repository
     ```
     git clone https://huggingface.co/scottsus/mamba-2.8b-custom
-    # git clone git@hf.co/scottsus/mamba-2.8b-custom if you're a repo owner
+    # git clone git@hf.co:scottsus/mamba-2.8b-custom if you're a repo owner
     ```
 5. Install requirements
     ```
@@ -69,9 +69,10 @@ Since we're working with very large files ~5GB for each model weight, we need `g
     huggingface-cli lfs-enable-largefiles .
     ```
 3. Huggingface Credentials
-    - Same way to authenticate yourself in GitHub.
-    - An extra step to add key to agent:
+    - Same way to authenticate yourself in GitHub with an extra step to add the key to agent:
         ```
+        ssh-keygen -t ed25519 -C "scottsus@usc.edu"
+        eval "$(ssh-agent -s)"
         ssh-add ~/.ssh/{KEY}
         ```
         You have `id_ed25519` and `id_ed25519.pub` -- make sure to select the PRIVATE KEY, the one WITHOUT the `.pub`
