@@ -1,20 +1,15 @@
 import torch
 from transformers import MambaForCausalLM, AutoTokenizer
-from src.utils.names import (
-    BASE_HF_MODEL,
-    FINETUNE_MODEL_WEIGHTS_FILE,
-)
+from src.utils.names import INSTRUCT_MODEL_HF_NAME
 from src.utils.generate import stream
 
 def run_inference():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {torch.cuda.current_device()}")
 
-    model_checkpoint = BASE_HF_MODEL
-    model = MambaForCausalLM.from_pretrained(model_checkpoint, state_dict=None)
+    model_checkpoint = INSTRUCT_MODEL_HF_NAME
+    model = MambaForCausalLM.from_pretrained(model_checkpoint)
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-
-    model.load_state_dict(torch.load(FINETUNE_MODEL_WEIGHTS_FILE))
     model.to(device)
 
     try:
