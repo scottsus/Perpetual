@@ -3,7 +3,7 @@ from trl import SFTTrainer
 from transformers import TrainingArguments
 
 def begin_training(
-    model, tokenizer, dataset,
+    model, tokenizer, train_dataset, eval_dataset,
 
     # Hyperparameters
     max_seq_len = 2048,
@@ -26,7 +26,8 @@ def begin_training(
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=dataset,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         max_seq_length=max_seq_len,
         dataset_text_field=dataset_text_field,
         dataset_num_proc=dataset_num_proc,

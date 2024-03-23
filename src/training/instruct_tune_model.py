@@ -27,13 +27,14 @@ def begin_instruction_tuning():
             texts.append(text)
         return { "text" : texts, }
 
-    dataset = load_dataset(INSTRUCT_DATASET_NAME, split="train")
+    dataset = load_dataset(INSTRUCT_DATASET_NAME, split="train").train_test_split(test_size=0.15)
     dataset = dataset.map(formatting_prompts_func, batched=True)
+    train_dataset, eval_dataset = dataset["train"], dataset["test"]
     print(f"Loaded {INSTRUCT_DATASET_NAME} dataset: {dataset}")
 
-    begin_training(model, tokenizer, dataset)
+    begin_training(model, tokenizer, train_dataset, eval_dataset)
     # Requires notebook_login()
-    # model.push_to_hub(INSTRUCT_MODEL_HF_NAME)
+    model.push_to_hub(INSTRUCT_MODEL_HF_NAME)
     print(f"✅ Instruction-tuning success, find the model on `{INSTRUCT_MODEL_HF_NAME}`")
 
 if __name__ == "__main__":
