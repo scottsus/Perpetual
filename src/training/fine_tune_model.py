@@ -32,8 +32,5 @@ def begin_fine_tuning():
     model.load_state_dict(torch.load(INSTRUCT_MODEL_WEIGHTS_FILE))
     model.to(device)
 
-    begin_training(model, tokenizer, dataset, FINETUNE_MODEL_WEIGHTS_FILE)
-    print(f"✅ Fine-tuning success, saved weights in `{FINETUNE_MODEL_WEIGHTS_FILE}`")
-
 if __name__ == "__main__":
     begin_fine_tuning()

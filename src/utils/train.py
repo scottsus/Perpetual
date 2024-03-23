@@ -15,6 +15,7 @@ def begin_training(
     learning_rate = 2e-4,
     warmup_steps = 5,
     logging_steps = 50,
+    save_total_limit = 3,
     weight_decay = 0.01,
     lr_scheduler_type = "linear",
     optimizer = "adamw_8bit",
@@ -36,6 +37,7 @@ def begin_training(
             learning_rate=learning_rate,
             warmup_steps=warmup_steps,
             logging_steps=logging_steps,
+            save_total_limit=save_total_limit,
             weight_decay=weight_decay,
             lr_scheduler_type=lr_scheduler_type,
             optim=optimizer,
@@ -46,4 +48,3 @@ def begin_training(
     )
 
     trainer.train()
-
