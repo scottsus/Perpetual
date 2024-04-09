@@ -1,7 +1,7 @@
 import torch
 from transformers import MambaForCausalLM, AutoTokenizer
-from src.utils.names import INSTRUCT_MODEL_HF_NAME
-from src.utils.generate import stream
+from scripts.utils.names import INSTRUCT_MODEL_HF_NAME
+from scripts.utils.generate import stream
 
 def run_inference():
     device = "cuda" if torch.cuda.is_available() else "cpu"

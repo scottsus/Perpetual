@@ -1,11 +1,11 @@
 import torch
 from transformers import MambaForCausalLM, AutoTokenizer
 from datasets import load_dataset
-from ..utils.names import (
+from scripts.utils.names import (
     BASE_HF_MODEL, INSTRUCT_DATASET_NAME, INSTRUCT_MODEL_HF_NAME
 )
-from ..utils.prompt import alpaca_prompt as prompt
-from ..utils.train import begin_training
+from scripts.utils.prompt import alpaca_prompt as prompt
+from scripts.utils.train import begin_training
 
 def begin_instruction_tuning():
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -33,6 +33,7 @@ def begin_instruction_tuning():
     print(f"Loaded {INSTRUCT_DATASET_NAME} dataset: {dataset}")
 
     begin_training(model, tokenizer, train_dataset, eval_dataset)
+    
     # Requires notebook_login()
     model.push_to_hub(INSTRUCT_MODEL_HF_NAME)
     print(f"✅ Instruction-tuning success, find the model on `{INSTRUCT_MODEL_HF_NAME}`")

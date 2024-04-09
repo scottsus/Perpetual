@@ -2,13 +2,13 @@ import os
 import torch
 from transformers import MambaForCausalLM, AutoTokenizer
 from datasets import load_dataset
-from ..utils.names import (
+from scripts.utils.names import (
     INSTRUCT_MODEL_WEIGHTS_FILE,
     FINETUNE_MODEL_WEIGHTS_FILE,
     BASE_HF_MODEL,
     FINETUNE_DATASET_NAME,
 )
-from ..utils.train import begin_training
+from scripts.utils.train import begin_training
 
 def begin_fine_tuning():
     if not os.path.exists(INSTRUCT_MODEL_WEIGHTS_FILE):
