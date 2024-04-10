@@ -9,7 +9,7 @@ def begin_training(
     max_seq_len = 2048,
     dataset_num_proc = 2,
     dataset_text_field = "text",
-    packing = False,
+    packing = True,
     per_device_train_batch_size = 2,
     gradient_accumulation_steps = 4,
     learning_rate = 2e-4,
