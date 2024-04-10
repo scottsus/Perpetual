@@ -1,0 +1,518 @@
+[
+    {
+        "type": "doc",
+        "document": "Jamba:\n     A Hybrid Transformer-Mamba Language Model\n         Opher Lieber\u2217    Barak Lenz\u2217    Hofit Bata    Gal Cohen    Jhonathan Osin\n             Itay Dalmedigos    Erez Safahi    Shaked Meirom    Yonatan Belinkov\n                 Shai Shalev-Shwartz    Omri Abend    Raz Alon    Tomer Asida\n       Amir Bergman    Roman Glozman    Michael Gokhman    Avashalom Manevich\n          Nir Ratner    Noam Rozen    Erez Shwartz    Mor Zusman    Yoav Shoham\n                                                 Abstract\n          We present Jamba, a new base large language model based on a novel hybrid\n          Transformer-Mambamixture-of-experts(MoE)architecture. Specifically,Jamba\n          interleaves blocks of Transformer and Mamba layers, enjoying the benefits of both\n          modelfamilies. MoEisadded insome oftheselayers toincrease modelcapacity\n          whilekeepingactiveparameterusagemanageable. Thisflexiblearchitectureallows\n          resource- and objective-specific configurations. In the particular configuration we\n          have implemented, we end up with a powerful model that fits in a single 80GB\n          GPU. Built at large scale, Jamba provides high throughput and small memory\n          footprint compared to vanilla Transformers, and at the same time state-of-the-art\n          performanceonstandardlanguagemodelbenchmarksandlong-contextevaluations.\n          Remarkably,themodelpresentsstrongresultsforupto256Ktokenscontextlength.\n          We study various architectural decisions, such as how to combine Transformer and\n          Mamba layers, and how to mix experts, and show that some of them are crucial\n          in large scale modeling. We also describe several interesting properties of these\n          architectureswhichthetrainingandevaluationofJambahaverevealed,andplanto\n          release checkpoints from various ablation runs, to encourage further exploration\n          of this novel architecture. We make the weights of our implementation of Jamba\n          publicly available under a permissive license.\n          Model: https://huggingface.co/ai21labs/Jamba-v0.1\n1   Introduction\nWe introduce Jamba, a new publicly available large language model. Jamba is based on a novel\nhybrid architecture, which combines Transformer layers [46] with Mamba layers [16], a recent\nstate-space model[17, 18], as wellas a mixture-of-experts (MoE)component [13, 41]. Jambathus\ncombinestwoorthogonalarchitecturaldesignsthattogethergiveitimprovedperformanceandhigher\nthroughput,whilemaintainingamanageablememoryfootprint. The7B-basedJambamodel(12B\nactive parameters, 52B total available parameters) we are releasing was designed to fit in a single\n80GBGPU,buttheJambaarchitecturesupportsotherdesignchoices,depending onone\u2019shardware\nand performance requirements.\n   \u2217 Equal contribution.ThefundamentalnoveltyofJambaisitshybridTransformer-Mambaarchitecture(thoughseemention\nbelowofrecentrelatedefforts). DespitetheimmensepopularityoftheTransformerasthepredominant\narchitecture for language models, it suffers from two main drawbacks. First, its high memory and\ncompute requirementshinders theprocessing oflong contexts, wherethe key-value (KV) cachesize\nbecomesalimitingfactor. Second,itslackofasinglesummarystateentailsslowinferenceandlow\nthroughput, since each generated token performs a computation on the entire context. In contrast,\nolder recurrent neural network (RNN) models, which summarize an arbitrarily long context in a\nsinglehiddenstate,donotsufferfromtheselimitations. RNNmodelshavetheirownshortcomings,\nhowever. They are costly to train since trainingcannot be parallelized across time steps. And they\nstruggle with long distance relationships, which the hidden state captures to only a limited extent.\nRecentstatespacemodels(SSMs)likeMambaare moreefficienttotrainthanRNNsandaremore\ncapableathandlinglongdistancerelationships,butstilllagbehindtheperformanceofcomparably\nsized Transformer language models. Taking a"
+    },
+    {
+        "type": "qna",
+        "question": "[\n\"What is Jamba and what hybrid architecture does it utilize?\"",
+        "answer": "\"Jamba is a new large language model that utilizes a hybrid architecture combining Transformer layers and Mamba layers, as well as a mixture-of-experts (MoE) component.\""
+    },
+    {
+        "type": "qna",
+        "question": "\"What is the primary novelty of Jamba's architecture?\"",
+        "answer": "\"The primary novelty of Jamba's architecture is its hybrid design that integrates Transformer and Mamba layers, designed to tackle the high memory and compute requirements of traditional Transformers while enhancing performance with the aid of MoE components.\""
+    },
+    {
+        "type": "qna",
+        "question": "\"How does Jamba address the limitations of the Transformer architecture?\"",
+        "answer": "\"Jamba addresses the limitations of the Transformer architecture by combining it with Mamba layers, which allows for handling longer contexts and improving inference speed by reducing memory footprint, unlike the traditional Transformer which suffers from large key-value cache sizes and lacks a single summary state.\""
+    },
+    {
+        "type": "qna",
+        "question": "\"What are the drawbacks of traditional Recurrent Neural Network (RNN) models according to the text?\"",
+        "answer": "\"Traditional RNN models are costly to train as training cannot be parallelized across time steps. They also struggle with capturing long distance relationships due to limitations in how the hidden state represents information.\""
+    },
+    {
+        "type": "qna",
+        "question": "\"What are the advantages of state space models (SSM) like Mamba compared to RNNs?\"",
+        "answer": "\"State space models like Mamba are more efficient to train than RNNs and are better at handling long-distance relationships, which they can manage more capably than the hidden states of RNNs.\""
+    },
+    {
+        "type": "qna",
+        "question": "\"What were the design targets for the Jamba model configurations discussed in the text?\"",
+        "answer": "\"The design targets for the Jamba model configurations were to fit the model into a single 80GB GPU while facilitating higher throughput and maintaining a manageable memory footprint, tailored to different hardware and performance requirements.\""
+    },
+    {
+        "type": "qna",
+        "question": "\"How does Jamba potentially benefit from combining Transformer and Mamba layers?\"",
+        "answer": "\"Jamba benefits from combining Transformer and Mamba layers by leveraging the advantages of each: Transformers' extensive parallelism and Mamba\u2019s efficient long-context management, thereby boosting overall performance and reducing computational resource requirements.\""
+    },
+    {
+        "type": "qna",
+        "question": "\"What improvements does Jamba offer over vanilla Transformers?\"",
+        "answer": "\"Jamba offers improvements over vanilla Transformers in terms of high throughput and small memory footprint, while maintaining state-of-the-art performance on standard language model benchmarks and long-context evaluations.\""
+    },
+    {
+        "type": "qna",
+        "question": "\"Where can the model weights for the Jamba implementation be accessed?\"",
+        "answer": "\"The model weights for the Jamba implementation can be accessed publicly on the HuggingFace model hub at the following URL: https://huggingface.co/ai21labs/Jamba-v0.1.\"\n]"
+    },
+    {
+        "type": "doc",
+        "document": "n a\nsinglehiddenstate,donotsufferfromtheselimitations. RNNmodelshavetheirownshortcomings,\nhowever. They are costly to train since trainingcannot be parallelized across time steps. And they\nstruggle with long distance relationships, which the hidden state captures to only a limited extent.\nRecentstatespacemodels(SSMs)likeMambaare moreefficienttotrainthanRNNsandaremore\ncapableathandlinglongdistancerelationships,butstilllagbehindtheperformanceofcomparably\nsized Transformer language models. Taking advantage of both model families, Jamba combines\nTransformer and Mamba layers, at a certain ratio. Varying the ratio of Transformer/Mamba layers\nallows balancing memory usage, efficient training, and long context capabilities.\nA few other recent attempts to combine Attention and SSM modules are worth noting. [50] mixes\nan S4 layer [17] with a local attention layer, followed by a sequence of local attention layers; it\nshows experimentswithsmallmodelsand simpletasks. [16]reportsthatinterleavingMambaand\nattention layers is only slightly better than pure Mamba in terms of perplexity, with models up to\n1.3B parameters. [33] starts with an SSM layer followed by chunk-based Transformers, with models\nup to 1.3B showing improved perplexity.  [12] adds an SSM layer before the self-attention in a\nTransformer layer, while [38] adds theSSM after the self-attention, both showing improvements on\nspeechrecognition. [32]replacestheMLPlayersintheTransformerbyMambalayers,andshows\nbenefitsinsimpletasks. TheseeffortsaredifferentfromJambabothintheparticularwayinwhich\ntheSSMcomponentismixedwiththeattentionone,andinthescaleofimplementation. Closestare\nperhapsH3[14],aspeciallydesignedSSMthatenablesinductioncapabilities,andageneralization\ncalled Hyena [35]. The former proposed ahybrid architecture that replaces the second and middle\nlayerswithself-attention,andwasimplementedwithupto2.7Bparametersand400Btrainingtokens.\nHowever, as shown in [16], its perfomance lags that of pure Mamba. Based on Hyena, StripedHyena\n[36] interleaves attention and SSM layers in a 7B parameter model. However, it lags behind the\nAttention-onlyMistral-7B[22]. AllofthisrendersJambathefirstproduction-gradeAttention-SSM\nhybridmodel. ScalingthehybridJambaarchitecturerequiredovercomingseveralobstacles,which\nwe dicsuss in Section6.\nJambaalsoincludesMoElayers[13,41],whichallowincreasingthemodelcapacity(totalnumberof\navailableparameters)withoutincreasingcomputerequirements(numberofactiveparameters). MoE\nisaflexibleapproachthatenablestrainingextremelylargemodelswithstrongperformance[23]. In\nJamba, MoE is applied to some of the MLP layers. The more MoE layers, and the more experts in\neachMoElayer,thelargerthetotalnumberofmodelparameters. Incontrast,themoreexpertsweuse\nat each forward pass, the larger the number of active parameters as well as the compute requirement.\nIn ourimplementation of Jamba, weapply MoE atevery otherlayer, with16 experts and thetop-2\nexperts used at each token (a more detailed discussion of the model architecture is provided below).\nWe evaluated our implementation of Jamba on a wide range of benchmarks and found it performs\ncomparablyto Mixtral-8x7B[23],which hasa similarnumber ofparameters,and alsoto thelarger\nLlama-2 70B [45]. In addition, our model supports a context length of 256K tokens \u2013 the longest\nsupportedcontextlengthforproduction-gradepubliclyavailablemodels. Onlong-contextevaluations,\nJambaoutperformesMixtralonmostoftheevaluateddatasets. Atthesametime,Jambaisextremely\nefficient; for example, its throughput is 3x that of Mixtral-8x7B for long contexts. Moreover, our\nmodel fits in a single GPU (with 8bit weights) even with contexts of over 128K tokens, which is\nimpossible with similar-size attention-only models such as Mixtral-8x7B.\nSomewhatunusuallyforanewarchitecture,wereleaseJamba(12Bactiveparameters,52Btotalavail-\nableparameters) underApache 2.0license: https://huggingface.co/ai21labs/Jamba-v0.1.\nWe doso sincewe feelthat thenovelarchitecture ofJamba callsfor fu"
+    },
+    {
+        "type": "qna",
+        "question": "1. What are some of the shortcomings of RNN models mentioned in the text?",
+        "answer": "RNN models are costly to train because training cannot be parallelized across time steps, and they struggle with handling long distance relationships due to the limited capacity of the hidden state to capture such dependencies."
+    },
+    {
+        "type": "qna",
+        "question": "2. What improvements do state space models like Mamba offer over RNNs according to the discussion?",
+        "answer": "State space models like Mamba are more efficient to train than RNNs and are better at handling long distance relationships, though they still fall short of the performance of similarly sized Transformer language models."
+    },
+    {
+        "type": "qna",
+        "question": "3. How does the Jamba model attempt to enhance model performance?",
+        "answer": "The Jamba model combines Transformer and Mamba layers in varying ratios to balance memory usage, efficient training, and the capability to handle long contexts, thus exploiting the strengths of both model families."
+    },
+    {
+        "type": "qna",
+        "question": "4. Give details on some of the recent approaches to combining Attention and state space model (SSM) modules as described.",
+        "answer": "Recent approaches include mixing an S4 layer with local attention layers, interleaving Mamba and attention layers, integrating SSM layers before or after self-attention in Transformer layers, and a hybrid approach replacing MLP layers in Transformers with Mamba layers."
+    },
+    {
+        "type": "qna",
+        "question": "5. What is the MoE approach in Jamba and its significance?",
+        "answer": "The MoE (Mixture of Experts) approach in Jamba enables the model to possess a large total number of parameters by including MoE layers in some of the MLP layers. It allows the training of extremely large models with strong performance while only activating a subset of experts (thereby parameters) during each forward pass to manage computation requirements."
+    },
+    {
+        "type": "qna",
+        "question": "6. Based on the text, how does Jamba's performance compare to other models like Mistral-8x7B and Llama-2 70B?",
+        "answer": "Jamba performs comparably to Mistral-8x7B, which has a similar number of parameters, and also to the larger Llama-2 70B. Especially in long-context evaluations, Jamba outperforms Mistral on most of the evaluated datasets."
+    },
+    {
+        "type": "qna",
+        "question": "7. Mention the unique aspects of Jamba's implementation as per the text.",
+        "answer": "Jamba's unique aspects include its ability to manage up to 256K token contexts, the first of its kind in production-grade publicly available models. It also boasts a three-fold throughput advantage over Mistral-8x7B for long contexts and can fit in a single GPU, even with large context size, unlike similar-sized attention-only models."
+    },
+    {
+        "type": "doc",
+        "document": "cient; for example, its throughput is 3x that of Mixtral-8x7B for long contexts. Moreover, our\nmodel fits in a single GPU (with 8bit weights) even with contexts of over 128K tokens, which is\nimpossible with similar-size attention-only models such as Mixtral-8x7B.\nSomewhatunusuallyforanewarchitecture,wereleaseJamba(12Bactiveparameters,52Btotalavail-\nableparameters) underApache 2.0license: https://huggingface.co/ai21labs/Jamba-v0.1.\nWe doso sincewe feelthat thenovelarchitecture ofJamba callsfor furtherstudy, experimentation,\nand optimization by the community.  Our design was based on various ablation experiments we\nconductedtoexploretheeffectofdifferenttradeoffsanddesignchoices,and insights gleanedfrom\nthose. Theseablationswereperformedatscalesofupto7Bparameters,andtraining runsofupto\n250B tokens. We plan to release model checkpoints from these runs.\n                                                        2Figure1: (a)AsingleJambablock. (b)Differenttypesoflayers. Theimplementationshownhereis\nwithl = 8   ,a  : m   = 1 : 7     ratio of attention-to-Mamba layers, and MoE applied everye = 2    layers.\nImportantnotice: The Jambamodel released isa pretrainedbase model, whichdid not gothrough\nalignmentorinstructiontuning,and doesnothavemoderationmechanisms. Itshouldnotbe usedin\nproduction environments or with end users without additional adaptation.\n2   Model Architecture\nJamba is a hybrid decoder architecture that mixes Transformer layers [46] with Mamba layers [16], a\nrecentstate-spacemodel(SSM) [17,18],inaddition toamixture-of-experts(MoE)module[13,41].\nWe call the combination of these three elements a Jamba block. See Figure1for an illustration.\nCombining Transformer, Mamba, and MoE elements allows flexibility in balancing among the\nsometimes conflicting objectives of low memory usage, high throughput, and high quality. In terms\nof memory usage, note that comparing the total size of the model parameters can be misleading.\nIn an MoE model, the number of active parameters that participate in any given forward step may\nbe much smaller than the total number of parameters. Another important consideration is the KV\ncache \u2013 the memory required to store the attention keys and values in the context. When scaling\nTransformer models to long contexts, the KV cache becomes a limiting factor. Trading off attention\nlayers for Mamba layers reduces the total size of the KV cache. Our architecture aims to provide\n                                                          3not only a small number of active parameters but also an 8x smaller KV cache compared to a vanilla\nTransformer. Table1compares Jamba with recent publicly available models, showing its advantage\nin maintaining a small KV cache even with 256K token contexts.\n                         Available params    Active params    KV cache (256K context, 16bit)\n         LLAMA-2              6.7B                      6.7B                                128GB\n         Mistral                    7.2B                      7.2B                                 32GB\n         Mixtral                   46.7B                    12.9B                                32GB\n         Jamba                      52B                       12B                                  4GB\nTable 1: Comparison of Jamba and recent open models in terms of total available parameters, active\nparameters, and KV cache memory on long contexts. Jamba provides a substantial reduction in the\nKV cache memory requirements.\nIn terms of throughput, with short sequences, attention operations take up a small fraction of the\ninferenceandtrainingFLOPS[6]. However,withlongsequences,attentionhogsmostofthecompute.\nIncontrast, Mambalayersare morecompute-efficient. Thus,increasingthe ratioofMamba layers\nimproves throughput especially for long sequences.\nHereisadescriptionofthemainconfiguration,whichprovidesimprovedperformanceandefficiency.\nSection6contains results from ablation experiments supporting the design choices.\nThebasiccomponentisaJambabloc"
+    },
+    {
+        "type": "qna",
+        "question": "[ \"What is the throughput comparison of the Jamba model against Mixtral-8x7B for long contexts?",
+        "answer": "The throughput of the Jamba model is 3 times that of Mixtral-8x7B for long contexts."
+    },
+    {
+        "type": "qna",
+        "question": "\", \"How does the Jamba model handle large context sizes in terms of hardware requirements?",
+        "answer": "The Jamba model is capable of fitting in a single GPU even with contexts of over 128K tokens, which is impossible for similar-size attention-only models such as Mixtral-8x7B."
+    },
+    {
+        "type": "qna",
+        "question": "\", \"Under what license is the Jamba model released, and where can it be accessed?",
+        "answer": "The Jamba model is released under the Apache 2.0 license and is available on https://huggingface.co/ai21labs/Jamba-v0.1."
+    },
+    {
+        "type": "qna",
+        "question": "\", \"What are the primary reasons for releasing the Jamba model to the public?",
+        "answer": "The Jamba model is released for further study, experimentation, and optimization by the community, as its novel architecture warrants deeper exploration."
+    },
+    {
+        "type": "qna",
+        "question": "\", \"What modifications does the Jamba model implement to manage memory usage effectively?",
+        "answer": "The Jamba model combines Transformer layers with Mamba layers and a MoE module, reducing memory usage notably by decreasing the size of the KV cache needed for storing attention keys and values."
+    },
+    {
+        "type": "qna",
+        "question": "\", \"How does the Jamba model's KV cache size compare to other models when handling 256K token contexts?",
+        "answer": "Jamba substantially reduces the KV cache size to 4GB compared to other models like LLAMA-2 (128GB), Mistral (32GB), and Mixtral (32GB) which handle the same token context size."
+    },
+    {
+        "type": "qna",
+        "question": "\", \"What key design element in the Jamba model helps improve throughput for long sequences?",
+        "answer": "The increase in the ratio of Mamba layers to attention layers in the Jamba model helps improve its throughput, especially for long sequences."
+    },
+    {
+        "type": "doc",
+        "document": "ith short sequences, attention operations take up a small fraction of the\ninferenceandtrainingFLOPS[6]. However,withlongsequences,attentionhogsmostofthecompute.\nIncontrast, Mambalayersare morecompute-efficient. Thus,increasingthe ratioofMamba layers\nimproves throughput especially for long sequences.\nHereisadescriptionofthemainconfiguration,whichprovidesimprovedperformanceandefficiency.\nSection6contains results from ablation experiments supporting the design choices.\nThebasiccomponentisaJambablock,whichmayberepeatedinsequence. EachJambablockisa\ncombinationofMambaorAttentionlayers. EachsuchlayercontainseitheranattentionoraMamba\nmodule,followedbyamulti-layerperceptron(MLP).Thedifferentpossibletypesoflayersareshown\nin Figure1(b).                  2 A Jamba block containsl layers, which are mixed at a ratio ofa  : m  , meaninga\nattention layers for everym   Mamba layers.\nInJamba,someoftheMLPsmaybereplacedbyMoElayers,whichhelpsincreasethemodelcapacity\nwhilekeepingtheactivenumberofparameters,andthusthecompute,small. TheMoEmodulemay\nbe applied to MLPs everye layers. When using MoE, there aren  possible experts per layer, with a\nrouterchoosing thetopK   expertsat eachtoken. In summary,the differentdegreesof freedominthe\nJamba architecture are:\n        \u2022 l: The number of layers.\n        \u2022 a  : m  : ratio of attention-to-Mamba layers.\n        \u2022 e: how often to use MoE instead of a single MLP.\n        \u2022 n : total number of experts per layer.\n        \u2022 K  : number of top experts used at each token.\nGiventhisdesignspace,Jambaprovidesflexibilityinpreferringcertainpropertiesoverothers. For\nexample, increasingm   and decreasinga, that is, increasing the ratio of Mamba layers at the expense\nofattention layers,reducesthe requiredmemoryfor storingthekey-value cache. Thisreduces the\noverallmemoryfootprint,whichisespeciallyimportantforprocessinglongsequences. Increasingthe\nratio of Mamba layers also improves throughput, especially at long sequences. However, decreasing\na might lower the model\u2019s capabilities.\nAdditionally, balancing n , K  , and e affects the relationship between active parameters and total\navailableparameters. Alargern  increasesthemodelcapacityattheexpenseofmemoryfootprint,\nwhilealargerK   increasestheactiveparameterusageandthecomputerequirement. Incontrast,a\nlargere decreases the model capacity, while decreasing both compute (whenK  >1) and memory\nrequirements,andallowingforlesscommunicationdependencies (decreasingmemorytransfersas\nwell as inter-GPU communication during expert-parallel training and inference).\nJamba\u2019s implementation of Mamba layers incorporate several normalizations that help stabilize\ntraining in large model scales. In particular, we apply RMSNorm [48] in the Mamba layers.\n   2The figure showsa potential Attention MoElayer, whichour architecture does notuse, but future variants\ncould.\n                                                           4WefoundthatwiththeMambalayer,positionalembeddingsormechanismslikeRoPE[42]arenot\nnecessary, and so we do not use any explicit positional information.\nOtherarchitecturedetailsarestandard,includinggrouped-queryattention(GQA),SwiGLUactivation\nfunction [6, 40, 45], and load balancing for the MoE [13]. The vocabulary size is 64K. The tokenizer\nistrainedwithBPE[15,29,39]andeachdigitisaseparatetoken[6]. Wealsoremovethedummy\nspace used in Llama and Mistral tokenizers for more consistent and reversible tokenization.\n3   Reaping the Benefits\n3.1   Jamba Implementation for a Single 80GB GPU\nThe specific configuration in our implementation was chosen to fit in a single 80GB GPU, while\nachieving best performance in the sense of quality and throughput. In our implementation we have a\nsequence of 4 Jamba blocks. Each Jamba block has the following configuration:\n        \u2022 l = 8   : The number of layers.\n        \u2022 a  : m   = 1 : 7    : ratio attention-to-Mamba layers.\n        \u2022 e = 2   : how often to use MoE instead of a single MLP.\n        \u2022 n  = 16    : total number of experts.\n        \u2022"
+    },
+    {
+        "type": "doc",
+        "document": "specific configuration in our implementation was chosen to fit in a single 80GB GPU, while\nachieving best performance in the sense of quality and throughput. In our implementation we have a\nsequence of 4 Jamba blocks. Each Jamba block has the following configuration:\n        \u2022 l = 8   : The number of layers.\n        \u2022 a  : m   = 1 : 7    : ratio attention-to-Mamba layers.\n        \u2022 e = 2   : how often to use MoE instead of a single MLP.\n        \u2022 n  = 16    : total number of experts.\n        \u2022 K   = 2   : number of top experts used at each token.\nThea  : m   = 1 : 7     ratio was chosen according to preliminary ablations, as shown in Section6, since\nthis ratio was the most compute-efficient variant amongst the best performing variants in terms of\nquality.\nTheconfiguration ofthe expertswas chosento enablethemodel tofit ina single80GBGPU (with\nint8 weights), while including sufficient memoryfor the inputs. In particular,n  ande were balanced\nto have an average of\u223c 8 experts per layer.  In addition, we balanced n , K  , and e  to allow for\nhigh quality, while keeping both compute requirements and communication dependencies (memory\ntransfers) checked. Accordingly, we chose to replace the MLP module with MoE on every other\nlayer, aswell as have a totalof 16 experts,two of whichare used ateach token. These choiceswere\ninspired by prior work on MoE [7,49] and verified in preliminary experiments.\nFigure2showsthemaximalcontextlengththatfitsasingle80GBGPUwithourJambaimplementa-\ntioncompared toMixtral 8x7Band Llama-2-70B.Jambaprovides2xthe contextlength ofMixtral\nand 7x that of Llama-2-70B.\nFigure2: ComparisonofmaximumcontextlengthfittinginasingleA10080GBGPU.Jambaenables\n2x the context length of Mixtral and 7x that of Llama-2-70B.\nOverall, our Jamba implementation was successfully trained on context lengths of up to 1M tokens.\nThe released model supports lengths of up to 256K tokens.\n                                                          53.2   Throughput Analysis\nForconcreteness,wepresentresultsofthethroughputintwospecificsettings.3 Inthefirstsetting,we\nhave varying batch size, a single A100 80 GB GPU, int8 quantization, 8K context length, generating\noutput of512 tokens. As Figure3ashows, Jamba allows processing oflarge batches, leadingto a 3x\nincrease in throughput (tokens/second) over Mixtral, which does not fit with a batch of 16 despite\nhaving a similar number of active parameters.\nInthesecondsetting,wehaveasinglebatch,4A100GPUs,noquantization,varyingcontextlengths,\ngeneratingoutputof512tokens. AsdemonstratedinFigure3b,atsmallcontextlengthsallmodels\nhaveasimilarthroughput. Jambaexcelsatlongcontexts;with128Ktokens its throughputis3xthat\nofMixtral. Notethat thisis despitethefact thatJamba hasnot yetenjoyedoptimizations ofthe kind\nthecommunityhasdevelopedforpureTransformermodelsoverthepastsixyears. Wecanexpect\nthe throughut gap to increase as such optimizations are developed also for Jamba.\n(a) Throughput at different batch sizes (single A100        (b) Throughput at different context lengths (single\nGPU, 8K context length).  Jamba allows processing           batch, 4 A100 GPUs).  With a context of 128K to-\nlarge batches, with a throughput 3x greater than Mix-       kens,Jambaobtains3xthethroughputofMixtral,while\ntral.                                                       Llama-2-70B does not fit with this long context.\n     Figure 3: Comparison of throughput (tokens/second) with Jamba and recent open models.\n4   Training Infrastructure and Dataset\nThe model was trained on NVIDIA H100 GPUs.  We used an in-house proprietary framework\nallowing efficient large-scale training including FSDP, tensor parallelism, sequence parallelism, and\nexpert parallelism.\nJamba is trained on an in-house dataset that contains text data from the Web, books, and code, with\nthelastupdateinMarch2024. Ourdataprocessingpipelineincludesqualityfiltersanddeduplication.\n5   Evaluation\nIn general we approach benchmarks cautiously, as they correlate only partially"
+    },
+    {
+        "type": "qna",
+        "question": "1. What is the configuration of each Jamba block in the implementation described?",
+        "answer": "Each Jamba block has 8 layers, a ratio of 1:7 attention-to-Mamba layers, uses MoE every 2 layers, has 16 total experts, and uses 2 top experts at each token."
+    },
+    {
+        "type": "qna",
+        "question": "2. What were the primary considerations for choosing the configuration of the experts in the Jamba implementation?",
+        "answer": "The experts' configuration was chosen to fit the model within a single 80GB GPU with int8 weights, while balancing memory for inputs and ensuring high quality. This included balancing the number of experts, the frequency of MoE usage, and the number of top experts used per token."
+    },
+    {
+        "type": "qna",
+        "question": "3. How does the Jamba model's context length compare to other models like Mixtral and Llama-2-70B?",
+        "answer": "Jamba provides twice the context length of Mixtral and seven times that of Llama-2-70B."
+    },
+    {
+        "type": "qna",
+        "question": "4. What are the throughput enhancements facilitated by the Jamba model under different conditions specified in the text?",
+        "answer": "In setting with a varying batch size on a single GPU, Jamba allows processing large batches with a throughput 3x greater than Mixtral. In the second setting with varying context lengths, Jamba excels at long contexts, achieving 3x the throughput of Mixtral."
+    },
+    {
+        "type": "qna",
+        "question": "5. What specialized hardware and frameworks support the training of the Jamba model?",
+        "answer": "The Jamba model was trained using NVIDIA H100 GPUs and an in-house proprietary framework that includes features like FSDP, tensor parallelism, sequence parallelism, and expert parallelism."
+    },
+    {
+        "type": "qna",
+        "question": "6. What sources and data processing techniques are used for training the Jamba model?",
+        "answer": "The Jamba model is trained on an in-house dataset containing data from the Web, books, and code, with updates until March 2024. The data processing pipeline includes quality filters and deduplication."
+    },
+    {
+        "type": "doc",
+        "document": "Dataset\nThe model was trained on NVIDIA H100 GPUs.  We used an in-house proprietary framework\nallowing efficient large-scale training including FSDP, tensor parallelism, sequence parallelism, and\nexpert parallelism.\nJamba is trained on an in-house dataset that contains text data from the Web, books, and code, with\nthelastupdateinMarch2024. Ourdataprocessingpipelineincludesqualityfiltersanddeduplication.\n5   Evaluation\nIn general we approach benchmarks cautiously, as they correlate only partially with what matters\nin real applications, and furthermore invite gaming the system in order to boast vanity numbers.\nNevertheless, we present several indicative results.\n5.1   Academic Benchmarks\nWe report results with a wide range of standard academic benchmarks:\nCommon sense reasoning: HellaSwag (10-shot) [47], WinoGrande (5-shot) [37], ARC-E (0-shot)\n          and ARC-Challenge (25-shot) [9], and PIQA (zero-shot) [3].\nReading Comprehension: BoolQ (10-shots) [8] and QuAC (zero-shot) [5].\nOthers: GSM8K (3-shot CoT) [10], HumanEval (pass@1) [4], Natural Questions closed-book (NQ;\n          5-shot) [26], and TruthfulQA (zero-shot) [27].\nAggregate benchmarks: MMLU (5-shot) [20] and BBH (3-shot) [43].\n   3Referringtoend-to-end throughput(encoding+decoding). The results shouldbetakenrelativelyratherthan\nabsolutely, as they are without possible optimizations.\n                                                          6                                                    Reasoning\n                    HellaSwag    WinoGrande    ARC-E        ARC-C         PIQA      NQ     TruthfulQA\n Llama-213B         80.7                72.8              77.3             59.4             80.5       37.7          37.4\n Llama-270B         85.3                80.2              80.2             67.3             82.8       46.9          44.9\n Gemma                81.2                72.3              81.5             53.2             81.2       32.6          44.8\n Mixtral                 86.7                81.2              77.6              66               83        44.8          46.8\n Jamba                  87.1                82.5              73.5             64.4             83.2       45.9          46.4\n                           Comprehension                                                        Aggregate\n                       BoolQ            QuAC         GSM8K    HumanEval    MMLU    BBH\n Llama-213B         81.7                42.7              34.7             18.3             54.8       39.4\n Llama-270B          85                 42.4              55.3             29.9             69.8       51.2\n Gemma                87.2                39.2              54.5             32.3             64.3       55.1\n Mixtral                 88.4                40.9              60.4             34.8             70.6       50.3\n Jamba                  88.2                40.9              59.9             29.3             67.4       45.4\nTable2: ComparisonofJambawith otherpubliclyavailablemodels. Jambaobtainssimilar orbetter\nperformance with much better throughput.\nTable2comparesJamba toseveral publiclyavailable modelson commonacademic benchmarksfor\nevaluating language models. We compare with Llama-2 13B [45], which has about the same number\nofactive paramtersasour model,Llama-2 70B,which islarger thanour model,Gemma [44], which\nhas7Bparameters,andMixtral[23],whichhasaboutthesamenumberofactiveandtotalparameters\nas our model.\nNoticebly,Jambaperformscomparablytotheleadingpubliclyavailablemodelsofsimilarorlarger\nsize, includingLlama-2 70B andMixtral. At thesame time, ourmodel has asmaller number oftotal\navailable parameters than Llama-2 (52B compared to 70B). Moreover, as a sparse model, Jamba\nhas only 12B active parameters, similar to Mixtral\u2019s 12.9B active parameters. However, as a fully-\nattentional model, Mixtral has a large memory footprint with long sequences, requiring 32GB for the\nKVcachewith256Ktokens. Incontrast,thankstoitshybridAttention-Mambaarchitecture,"
+    },
+    {
+        "type": "qna",
+        "question": "[\n\"1. What type of GPUs were used to train the model described in the text?",
+        "answer": "NVIDIA H100 GPUs."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"2. What proprietary framework does the model use for its training?",
+        "answer": "An in-house proprietary framework which allows efficient large-scale training including FSDP, tensor parallelism, sequence parallelism, and expert parallelism."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"3. What sources of data were used to train the model Jamba?",
+        "answer": "Jamba is trained on text data from the Web, books, and code."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"4. When was the last update made to the dataset used for training Jamba?",
+        "answer": "The last update was made in March 2024."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"5. What metrics are used in the data processing pipeline for the Jamba dataset?",
+        "answer": "Quality filters and deduplication."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"6. How does the document view benchmarks for evaluation?",
+        "answer": "Benchmarks are approached cautiously as they only partially correlate with what matters in real applications and invite gaming the system to boast vanity numbers."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"7. What are the types of benchmarks detailed in the Academic Benchmarks section?",
+        "answer": "Common sense reasoning, reading comprehension, others, and aggregate benchmarks."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"8. Name some of the models compared in Table2 for evaluating language model performance.",
+        "answer": "Llama-213B, Llama-270B, Gemma, Mixtral, and Jamba."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"9. How does Jamba's active parameters compare to those of Mixtral?",
+        "answer": "Jamba has 12B active parameters, similar to Mixtral\u2019s 12.9B active parameters."
+    },
+    {
+        "type": "qna",
+        "question": "\",\n\"10. What advantages does Jamba have over Mixtral in terms of memory requirements?",
+        "answer": "Jamba, thanks to its hybrid Attention-Mamba architecture, requires less memory and has a smaller footprint compared to Mixtral\u2019s large memory requirement of 32GB for the KV cache with 256K tokens."
+    },
+    {
+        "type": "doc",
+        "document": "iclyavailablemodelsofsimilarorlarger\nsize, includingLlama-2 70B andMixtral. At thesame time, ourmodel has asmaller number oftotal\navailable parameters than Llama-2 (52B compared to 70B). Moreover, as a sparse model, Jamba\nhas only 12B active parameters, similar to Mixtral\u2019s 12.9B active parameters. However, as a fully-\nattentional model, Mixtral has a large memory footprint with long sequences, requiring 32GB for the\nKVcachewith256Ktokens. Incontrast,thankstoitshybridAttention-Mambaarchitecture,Jamba\u2019s\nKVcachetakesonly4GBevenatsuchalongcontext(Section2). Importantly,ourJambaachieves\nsucha strongperformancewhile havingmuch betterthroughputthan Llama-270Band Mixtral,up\nto 3x improvement (Section3.2).\nIn summary, Jamba demostrates the ability of hybrid architectures to reach the performance of\nstate-of-the-art Transformer based models of the same size class, while having the benefits of an\nSSM.\n5.2   Long-Context Evaluations\nWe have successfully trained Jambamodels withcontextlengths ofup to1M tokens. The released\nmodelhandlescontextlengthsofupto 256Ktokens. Inthissection,weevaluateitonsyntheticand\nnaturalistic benchmarks that test is long-context capabilities.\n5.2.1   Needle-in-a-haystack\nAs Figure4shows, Jamba has excellent performance in the needle-in-a-haystack evaluation, which\nrequiresretrievingasimplestatementplantedinalongcontextwindow[24]. Thisresultisnoteworthy\nespecially given that our implementation of Jamba uses only 4 attention layers.\n5.2.2   Naturalistic long-context evaluation\nWeevaluateJamba\u2019sabilitytohandlelongcontextsusingquestion-answeringbenchmarks,consisting\nof long inputs. To this end, we repurpose five of the longest-context datasets from L-Eval [2], by\nstructuring them in a few-shot format (we use 3-shots in all experiments here).  Specifically, we\nevaluated the models on the following datasets: NarrativeQA (QA on narratives; [25]), LongFQA\n(finance;[2]),NaturalQuestions(NQ;Wikipedia;[26]),CUAD(law;[21]),andSFiction(science\n                                                              7Figure4: Aneedle-in-a-haystackevaluationshowingJamba\u2019sabilitytorecallstatementsplacedin\nthe middle of contexts of up to 256K tokens length.\nfiction). The average input length in these datasets ranges from 6K to 62K tokens. These context\nlengths are further highly expanded by the few-shot format.\nTable3summarizes the evaluation results, in terms of F1. Jamba outperforms Mixtral on most of the\ndatasetsaswellasonaverage. Inaddition,astheselong-contexttasksrequiresubstantialcomputation,\nhere Jamba\u2019s efficiency shines, with much better throughput with long contexts (Section3.2).\n                            LongFQA    CUAD    NarrativeQA     NQ     SFiction                    Avg\n               Mixtral         0.42           0.46             0.29           0.58        0.42    0.43\n               Jamba           0.44           0.44             0.30           0.60        0.40    0.44\n             Table 3: Results (F1) on long-context QA benchmarks, with a 3-shot format.\n6   Ablations and Insights\nThissectiondiscussesablationexperimentsweranfordifferentdesignchoicesinourimplementation\nof the Jamba architecture.  First we show the benefit of combining attention and Mamba layers,\nat which ratio they should be combined, and how to interleave them. We investigate cases where\npure Mamba fails, suggesting that it struggles to develop in-context learning capabilities, while\nthe Attention\u2013Mamba hybrid exhibits in-context learning similar to vanilla Transformers. Then we\nshow thebenefit of addingMoE on topof a hybrid Attention\u2013Mamba model. Finally, we sharetwo\nadditional learnings that we found useful: explicit positional information is not needed in Jamba, and\nMamba layers necessitate special normalization to stabilize training at large scale.4\nFortheseablations,wereportthefollowingmeasures,whichexhibitinformativeperformanceevenat\nsmall data or model scale.\n        \u2022  Academic benchmarks:  HellaSwag (10-shot) [47], WinoGrande (5-shot) [37]"
+    },
+    {
+        "type": "qna",
+        "question": "1. What is the total number of available parameters in our model versus Llama-2 and how does this compare to Jamba's active parameters?",
+        "answer": "Our model has a total of 52 billion parameters, which is less compared to Llama-2's 70 billion. However, Jamba specifically has only 12 billion active parameters, which is comparable to Mixtral\u2019s 12.9 billion active parameters."
+    },
+    {
+        "type": "qna",
+        "question": "2. Describe the memory requirements for Mixtral and Jamba in handling long sequences.",
+        "answer": "Mixtral, as a fully-attentional model, has a large memory footprint with long sequences, requiring 32GB for its KV cache with 256K tokens. In contrast, Jamba\u2019s KV cache only requires 4GB for the same context length due to its hybrid Attention-Mamba architecture."
+    },
+    {
+        "type": "qna",
+        "question": "3. What performance improvements does Jamba achieve compared to Llama-2 and Mixtral?",
+        "answer": "Jamba achieves up to a 3x improvement in throughput compared to both Llama-2 and Mixtral, demonstrating strong performance while having much better throughput."
+    },
+    {
+        "type": "qna",
+        "question": "4. What is the longest context length that Jamba models have been trained to handle, and what is the context length capacity of the released model?",
+        "answer": "Jamba models have been successfully trained with context lengths of up to 1 million tokens, while the released model can handle context lengths of up to 256K tokens."
+    },
+    {
+        "type": "qna",
+        "question": "5. Discuss the performance of Jamba in the needle-in-a-haystack evaluation.",
+        "answer": "Jamba shows excellent performance in the needle-in-a-haystack evaluation, where it is required to retrieve a simple statement planted in a long context window, even with an implementation using only 4 attention layers."
+    },
+    {
+        "type": "qna",
+        "question": "6. How does Jamba's performance compare with Mixtral's on the evaluated long-context QA benchmarks?",
+        "answer": "Jamba outperforms Mixtral on most of the evaluated long-context QA benchmarks (LongFQA, CUAD, NarrativeQA, NQ, SFiction) as well as on average, based on F1 scores presented in the assessments."
+    },
+    {
+        "type": "qna",
+        "question": "7. What major insights were reported from the ablation experiments conducted on Jamba?",
+        "answer": "Insights from the ablation experiments on Jamba include the benefits of combining attention and Mamba layers, the optimal ratio for their combination, how they should be interleaved, and special considerations like the non-requirement of explicit positional information and the necessity of special normalization in Mamba layers to stabilize training at large scale."
+    },
+    {
+        "type": "qna",
+        "question": "8. What are some notable ablation studies and their relevance to performance improvement?",
+        "answer": "Notable ablation studies include investigating cases where pure Mamba layers fail, suggesting they struggle with developing in-context learning capabilities, whereas the Attention-Mamba hybrid shows similar learning competencies as vanilla Transformers. Also, the addition of MoE (Mixture of Experts) on top of the hybrid model showed further performance benefits."
+    },
+    {
+        "type": "doc",
+        "document": "Transformers. Then we\nshow thebenefit of addingMoE on topof a hybrid Attention\u2013Mamba model. Finally, we sharetwo\nadditional learnings that we found useful: explicit positional information is not needed in Jamba, and\nMamba layers necessitate special normalization to stabilize training at large scale.4\nFortheseablations,wereportthefollowingmeasures,whichexhibitinformativeperformanceevenat\nsmall data or model scale.\n        \u2022  Academic benchmarks:  HellaSwag (10-shot) [47], WinoGrande (5-shot) [37], Natural\n          Questions closed-book (NQ; 5-shot) [26].\n        \u2022  HuggingFaceOpenLLMleaderboard(OLLM)[11]: asummarystatisticofseveraldatasets.\n          We report results with our reproduction.\n        \u2022  Perplexity evaluations: we report log-prob (per byte) on texts from three domains: C4,\n          Books, and code.\n   4In all the ablation experiments, \u201cpure Mamba\u201d refers to models with Mamba layers interleaved with MLP\nlayers.\n                                                           86.1   Benefits of combining Attention and Mamba\nWe first investigate the ratio of Attention to Mamba layers (a  : m  ), with 1.3B parameters models\ntrainedfor 250Btokens. AsTable4shows, thehybrid Jambamodel outperformsthepure attention\nor Mamba models.  The ratio of attention-to-Mamba layers may be 1:3 or 1:7 with virtually no\nperformance difference. Figure5shows the training loss of these models, where Jamba exhibits\nimproved loss during training. Given that a 1:7 ratio is more compute-efficient and shows similar\nperformance, we opt for it in our larger-scale experiments.\n                                                         Hella       Wino                           log-prob\n                                             OLLM                                   NQ        C4       Books     CodeSwagGrande\n  Attention                                          36.4       62.4        59.6       14.5    -0.543    -0.659    -0.331\n  Mamba                                             36.1       62.6        59.4       14.5    -0.543    -0.661    -0.334\n  Jamba (a  : m   = 1 : 3    , no MoE)      37.2       65.1        61.7       16.5    -0.533    -0.649    -0.321\n  Jamba (a  : m   = 1 : 7    , no MoE)      37.2       65.1        61.7       16.0    -0.533    -0.650    -0.321\nTable 4: Results on academic benchmarks and log-probability evaluations showing an improved\nperformance of Attention-Mamba (no MoE) compared to vanilla Attention and Mamba models.\nThere is no substantial difference between 1:3 and 1:7 ratios of Attention-to-Mamba layers. Models\nare 1.3B parameters, trained for 250B tokens.\nFigure5: TraininglosscurvesforpureAttention,pureMamba,and Attention-Mamba hybrids(no\nMoE), with ratiosa  : m   of 1:3 and 1:4. All models are 1.3B parameters. The two hybrids achieve\nbetter loss throughout this training run, without any noticeable difference between the different\nAttention/Mamba ratios.\nNext,wecompareperformanceofvanillaTransformer,vanillaMamba,andAttention-Mambahybrid\nmodels, at 7B model size, after training on 50B tokens. As Table5shows, the pure Mamba layer is\nquite competitive, but lags slightly behind pure Attention. The hybrid Attention-Mamba (without\nMoE)outperformsthepuremodelswhileobtainingbetterthroughputthanthevanillaTransformer\n(Section3.2).\n                                                         Hella       Wino                           log-prob\n                                             OLLM                                   NQ        C4       Books     CodeSwagGrande\n  Attention                                          36.1       60.4        59.7       13.7    -0.555    -0.666    -0.347\n  Mamba                                             35.3       60.2        55.8       14.0    -0.554    -0.667    -0.355\n  Jamba (a  : m   = 1 : 7    , no MoE)      36.6       62.5        58.8       15.4    -0.547    -0.658    -0.340\nTable5: Resultsonacademicbenchmarksandlog-probevaluations,comparingpureAttention,pure\nMamba,andAttention-Mambahybrid(n"
+    },
+    {
+        "type": "qna",
+        "question": "1. What is the benefit of adding MoE on top of a hybrid Attention-Mamba model?",
+        "answer": "Adding MoE enhances the hybrid Attention\u2013Mamba model, as suggested by the improved performance reflected in the results."
+    },
+    {
+        "type": "qna",
+        "question": "2. What is a notable learning about the Jamba model regarding positional information?",
+        "answer": "In the Jamba model, explicit positional information is not necessary."
+    },
+    {
+        "type": "qna",
+        "question": "3. Why is special normalization needed in Mamba layers?",
+        "answer": "Special normalization in Mamba layers is needed to stabilize training at large scale."
+    },
+    {
+        "type": "qna",
+        "question": "4. What experiments demonstrate the differences between pure Mamba and Attention-Mamba models?",
+        "answer": "Ablation experiments indicate that hybrid Attention-Mamba models outperform pure Mamba and pure Attention models in various performance measures."
+    },
+    {
+        "type": "qna",
+        "question": "5. What ratio of Attention-to-Mamba layers shows similar performance and is more compute-efficient?",
+        "answer": "The ratio of 1:7 of Attention-to-Mamba layers shows similar performance to other ratios but is more compute-efficient."
+    },
+    {
+        "type": "qna",
+        "question": "6. What are the results of Jamba (a : m = 1:3, no MoE) in terms of performance on academic benchmarks and log-prob evaluations?",
+        "answer": "Jamba (a : m = 1:3, no MoE) achieves higher scores in OLLM, HellaSwag, WinoGrande, and NQ academic benchmarks, and better log-prob results in C4, Books, and code domains compared to pure Attention and Mamba models."
+    },
+    {
+        "type": "qna",
+        "question": "7. Which hybrid Attention-Mamba configuration outperforms both the vanilla Transformer and pure models at a 7B model size?",
+        "answer": "The hybrid Attention-Mamba configuration without MoE outperforms the vanilla Transformer and pure models at a 7B model size, particularly after training on 50B tokens."
+    },
+    {
+        "type": "doc",
+        "document": "Books     CodeSwagGrande\n  Attention                                          36.1       60.4        59.7       13.7    -0.555    -0.666    -0.347\n  Mamba                                             35.3       60.2        55.8       14.0    -0.554    -0.667    -0.355\n  Jamba (a  : m   = 1 : 7    , no MoE)      36.6       62.5        58.8       15.4    -0.547    -0.658    -0.340\nTable5: Resultsonacademicbenchmarksandlog-probevaluations,comparingpureAttention,pure\nMamba,andAttention-Mambahybrid(noMoE).Modelsare7Bparameters,trainedfor50Btokens.\n                                                             9Figure6shows the training loss of the three architectures. While the pure Transformer and Mamba\nmodelshaveasimilar convergence,the hybridJamba(noMoE) hasalowerlossthroughout thisrun.\nFigure6: TraininglosscurvesforpureAttention,pureMamba,andanAttention-Mambahybrid(no\nMoE). All models are 7B parameters. the hybrid achives better loss throughout this training run.\n6.2   Why does the Combination Work?\nThe pure Mamba model showed fairly good results in most tasks early on, including in general\nperplexity evaluations. However, it performed substantially worse than the pure Attention model\nin three common benchmark tasks: IMDB [28], QuAC [5], and NarrativeQA [25]. In contrast, the\nhybridAttention-MambaperformedsimilarlytotheAttentionmodelonthesedatasets. Table6shows\nthe results for 1.3B models after 250B tokens.\n                                                   IMDB    QuAC    NarrativeQA\n                           Attention                    84.1        27.9             45.8\n                           Mamba                      48.8        20.2             27.7\n                           Attention-Mamba      90.9        26.6             43.7\nTable 6: Mambaperforms poorlyoncertaindatasets, whiletheAttention-Mambahybridperformson\npar with the Attention model.\nLookingintotheseresultsfurther,wefoundoutthatthepureMambamodeloftendoesnotfollowthe\ncorrectformat. Forinstance,intheIMDBdataset,answerchoicesare\u201cPositive\u201dor\u201cNegative\u201d. While\nthe Attention model adheres to this format, the pure Mamba model often produces other answers,\nsuch as \u201cVery Good\u201d, \u201cVery Positive\u201d, \u201cFunny\u201d, \u201cBad\u201d, \u201cPoor\u201d, and \u201c3/10\u201d. While these may be\nconsidered correct answers, the difficulty of Mamba to adhere to the format suggests a potential\nproblem. Indeed, toperform successfulin-context learning,it is importantfor modelsto capturethe\ninput-outputformat[30]. ThehybridAttention-Mambamodelfollowstheformatsuccessfully,just\nlike the pure Attention model.\nWe hypothesize that this phenomenon points to a limitation of SSMs \u2013 a potential difficulty in\nin-contextlearning(ICL). Indeed,theabilityto performICLhasbeen linkedtotheemergence ofso-\ncalled induction heads in Transformer language models during training, which perform approximate\ncopying operations that are supportive of ICL [31].  We conjecture that the lack of an attention\nmechanism in the pure Mamba model makes it difficult for it to learn in-context. While Mamba\nmay learn to copy and perform simple ICL when explicitly trained to do so ([16, 32], it is not\nclear if ICL is an emergent capability in SSM as is typical of Transformer models. In contrast, the\nhybridAttention\u2013Mamba modeldoes performsuccessfulICL, even whenonly1 outof 8layers isan\nAttention one.\nAsanecdotalevidenceofanemergentinductionmechanism,wevisualizeinFigure7theattention\nof an example headfrom a 1.3B Attention-Mambahybrid model (no MoE), onan IMDB example\nwhere the pure Mamba failed and the hybrid succeeded. Clearly, the attention from the last token\n                                                        10(\u201c:\u201d) isfocusedonthelabelsfromthefew-shotexamples. Wehavefound12suchheadsinourhybrid\nmodel, in all three attention layers (which correspond to layers 4, 12, 20 in the model).\nFigure 7: Example induction head (H3, first attention layer) from a hybrid Attention-Mamba model.\nHighlighted wordsreflect strong attention fromthe last token, \u201c:\u201d,just befo"
+    },
+    {
+        "type": "qna",
+        "question": "1. What are the three architectures discussed and their respective scores in benchmark tasks according to Table 5?",
+        "answer": "The three architectures discussed are pure Attention, pure Mamba, and an Attention-Mamba hybrid (no MoE). Scores from Table 5 are not explicitly given in numbers but generally indicate that the hybrid performs similarly to the pure Attention model, which outperforms the pure Mamba model."
+    },
+    {
+        "type": "qna",
+        "question": "2. How do the training loss curves of the pure Attention, pure Mamba, and Attention-Mamba hybrid models compare according to Figure 6?",
+        "answer": "The training loss curves, as shown in Figure 6, indicate that pure Transformer and Mamba models have a similar convergence pattern, whereas the hybrid Jamba (no MoE) model maintains a lower loss throughout the training run compared to the other two."
+    },
+    {
+        "type": "qna",
+        "question": "3. How does the Attention-Mamba hybrid model perform on the IMDB, QuAC, and NarrativeQA benchmark tasks compared to the pure Attention and pure Mamba models?",
+        "answer": "According to Table 6, on the IMDB benchmark task, the Attention-Mamba hybrid scores 90.9, which is higher than both the pure Attention (84.1) and pure Mamba (48.8). On QuAC, it scores 26.6, compared to Attention at 27.9 and Mamba at 20.2. On NarrativeQA, the hybrid scores 43.7, with Attention at 45.8 and Mamba at 27.7. The hybrid performs comparably to the Attention model and outperforms the Mamba model."
+    },
+    {
+        "type": "qna",
+        "question": "4. What issue does the pure Mamba model face in terms of output format compliance, and how does the hybrid model correct this?",
+        "answer": "The pure Mamba model often does not adhere to the expected output format (e.g., it might answer \"Very Positive\" instead of the format-restricted \"Positive\" or \"Negative\" in the IMDB context). The Attention-Mamba hybrid, however, succeeds by following the correct format similarly to the pure Attention model, evidencing an improved handling of in-context learning."
+    },
+    {
+        "type": "qna",
+        "question": "5. What is hypothesized to be a limitation of the pure Mamba model, and how might this impact its learning processes?",
+        "answer": "The limitation of the pure Mamba model is hypothesized to be its difficulty in in-context learning (ICL) because it lacks a robust attention mechanism, which is critical for capturing input-output formats and supporting induction operations during training. This limitation suggests that while Mamba can perform simple copying and ICL when specifically trained, it may lack the emergent capability to do so, unlike typical Transformer models with attention mechanisms."
+    },
+    {
+        "type": "doc",
+        "document": "re the pure Mamba failed and the hybrid succeeded. Clearly, the attention from the last token\n                                                        10(\u201c:\u201d) isfocusedonthelabelsfromthefew-shotexamples. Wehavefound12suchheadsinourhybrid\nmodel, in all three attention layers (which correspond to layers 4, 12, 20 in the model).\nFigure 7: Example induction head (H3, first attention layer) from a hybrid Attention-Mamba model.\nHighlighted wordsreflect strong attention fromthe last token, \u201c:\u201d,just before themodel is about to\npredict the label. We see that the attention is focused on label tokens from the few-shot examples.\nFuture work can further investigate the emergence of ICL in hybrid models at large scale.  Our\nreleased checkpoints would hopefully facilitate such investigations. Finally, very recent work has\nattempted to extract attention-like scores from state-space models like Mamba [1], which opens\nanother direction to search for induction capabilities in state-space models.\n6.3   The Effect of Mixture-of-Experts (MoE)\nRecentworkhasshownthatMoEimprovesTransformerlanguagemodelswhilekeepingcompute\nmanageable [23].5  However, it is not clear if MoE integrates well with state-space models at a\nlargescale, andspecificallywith ourhybrid Attention\u2013Mamba architecture. Indeed, Table7shows\nthatMoEimprovestheperformanceofthehybridAttention-Mambaarchitectureatlargescale(7B\nparameterstrainedon50Btokens). TheMoEvarianthasn  = 16     totalexperts,K   = 2    expertsusedat\neach token, and MoE is applied everye = 2    layers, as described in Section3.1.\n                                               Hella      Wino                           log-prob\n                                  OLLM                                   NQ        C4       Books     CodeSwagGrande\n          Jamba (no MoE)      36.6       62.5        58.8       15.4    -0.547    -0.658    -0.340\n          Jamba+MoE             38.1       66.0        61.2       18.9    -0.534    -0.645    -0.326\n                   Table 7: Mixture-of-experts improves the Attention-Mamba hybrid.\n   5There is also initial evidence that MoE helps Mamba layers, albeit at small model and data scale [34].\n                                                           116.4   Stabilizing Mamba at large scale\nWhen training Jamba models of up to 1.3B parameters, we observed stable training without special\nproblems. However,whenscalingtothelargestmodelreleasedhere(7B-based,whichhas12B/52B\nactive/total parameters), we encountered large loss spikes. Investigating this revealed that inner parts\nof the Mamba layers suffer from large activation values, leading to the spikes. We therefore added\nRMSNorm [48] to internal activations. As Figure8shows, this stabilized training and prevented\nadditional loss spikes.\n                   Figure 8: Adding RMSNorm to Mamba layers prevents loss spikes.\n6.5   Jamba does not Require Explicit Positional Information\nTable8shows resultsofthe Jambaarchitecture (withMoE)with nopositional informationandwhen\napplyingRoPE[42]intheattentionlayers(1.3Bparametermodels,250Btokens). Theresultsare\nsimilar,suggestingthatexplicitpositionalinformationmaynotberequiredforthehybridarchitecture.\nPresumably, theMambalayers, whichare placedbefore attentionlayers, provideimplicit position\ninformation.6\n                             Hella     Wino                 Narrative                               log-prob\n                   OLLM                              ARC-C                     NQ    BoolQ      C4      Books     CodeSwagGrandeQA\n Jamba                39.6      71.5       64.2        40.7         50.5       22.2     68.9     -0.516    -0.623    -0.299\n Jamba+RoPE      40.1      71.8       65.5        40.4         46.2       22.2     67.9     -0.516    -0.623    -0.299\n           Table 8: Comparison of Jamba with and without explicit positional information.\n7   Conclusion\nWepresentedJamba,anovelarchitecturewhichcombinesAttentionandMambalayers,withMoE\nmodules, and an open implementation of it, re"
+    },
+    {
+        "type": "qna",
+        "question": "1. What is highlighted as the primary function of the induction head in the hybrid Attention-Mamba model?",
+        "answer": "The primary function of the induction head in the hybrid Attention-Mamba model is to focus attention on label tokens from few-shot examples."
+    },
+    {
+        "type": "qna",
+        "question": "2. What is the potential benefit of the released checkpoints according to the text?",
+        "answer": "The released checkpoints are expected to facilitate further investigations into the emergence of ICL (Inductive Conformal Learning) in hybrid models at large scale."
+    },
+    {
+        "type": "qna",
+        "question": "3. What recent development is mentioned in connection with state-space models like Mamba?",
+        "answer": "A recent development mentioned is the attempt to extract attention-like scores from state-space models like Mamba, which opens another research direction for induction capabilities in these models."
+    },
+    {
+        "type": "qna",
+        "question": "4. According to the text, how does MoE affect Transformer language models?",
+        "answer": "MoE (Mixture-of-Experts) improves Transformer language models while keeping compute manageable."
+    },
+    {
+        "type": "qna",
+        "question": "5. How is MoE integrated within the Attention-Mamba architecture and what results are shown in Table 7?",
+        "answer": "MoE is integrated by using 16 total experts, with 2 experts used at each token, and is applied every 2 layers. Table 7 shows that MoE improves the performance of the hybrid Attention-Mamba architecture at large scale."
+    },
+    {
+        "type": "qna",
+        "question": "6. What stability improvement is observed when RMSNorm is added to Mamba layers?",
+        "answer": "The addition of RMSNorm to Mamba layers helps stabilize training and prevents loss spikes, as illustrated in Figure 8."
+    },
+    {
+        "type": "qna",
+        "question": "7. What does Table 8 illustrate about the requirement of explicit positional information in the Jamba architecture?",
+        "answer": "Table 8 illustrates that the Jamba architecture may not require explicit positional information for effective functioning, as similar results are reported with and without RoPE (Rotary Positional Embedding). The Mamba layers presumably provide implicit positional information."
+    },
+    {
+        "type": "doc",
+        "document": "Books     CodeSwagGrandeQA\n Jamba                39.6      71.5       64.2        40.7         50.5       22.2     68.9     -0.516    -0.623    -0.299\n Jamba+RoPE      40.1      71.8       65.5        40.4         46.2       22.2     67.9     -0.516    -0.623    -0.299\n           Table 8: Comparison of Jamba with and without explicit positional information.\n7   Conclusion\nWepresentedJamba,anovelarchitecturewhichcombinesAttentionandMambalayers,withMoE\nmodules, and an open implementation of it, reaching state-of-the-art performance and supporting\nlongcontexts. WeshowedhowJambaprovidesflexibilityforbalancingperformanceandmemory\nrequirements,while maintaining ahighthroughput. Weexperimentedwithseveraldesignchoices\nsuch as the ratio of Attention-to-Mamba layers and discussed some discoveries made during the\ndevelopment process, which will inform future work on hybrid attention\u2013state-space models. To\nfacilitate such research, we plan to release model checkpoints from smaller-scale training runs.\nThe largest model we provide with this release has 12B active and 52B total available parameters,\nsupporting context lengths of up to 256K tokens and fitting in a single 80GB GPU even when\nprocessing 140K-token texts.\n   6Some prior evidence suggested that Transformer decoder models do not need positional encodings [19].\nHowever, all existing large scale models do use some sort of explicit position information.\n                                                          12References\n [1]  AmeenAli,ItamarZimerman,andLiorWolf. Thehiddenattentionofmambamodels. arXiv\n      preprint arXiv:2403.01590, 2024.\n [2]  Chenxin An, Shansan Gong, Ming Zhong, MukaiLi, Jun Zhang, Lingpeng Kong, and Xipeng\n      Qiu.  L-Eval: Instituting standardized evaluation for long context language models.  arXiv\n      preprint arXiv:2307.11088, 2023.\n [3]  Yonatan Bisk, Rowan Zellers, Jianfeng Gao, Yejin Choi, et al. PIQA: Reasoning about physical\n      commonsense in natural language.   In Proceedings of the AAAI Conference on Artificial\n      Intelligence, volume 34, pages 7432\u20137439, 2020.\n [4]  Mark Chen,Jerry Tworek, Heewoo Jun,Qiming Yuan,Henrique Ponde deOliveira Pinto, Jared\n      Kaplan,HarriEdwards,YuriBurda,NicholasJoseph,GregBrockman,etal. Evaluatinglarge\n      language models trained on code. arXiv preprint arXiv:2107.03374, 2021.\n [5]  Eunsol Choi, He He, Mohit Iyyer, Mark Yatskar, Wen-tau Yih, Yejin Choi, Percy Liang,\n      and Luke Zettlemoyer.  QuAC: Question answering in context.  In Proceedings of the 2018\n     Conference on Empirical Methods in Natural Language Processing, pages 2174\u20132184, 2018.\n [6]  AakankshaChowdhery,SharanNarang,JacobDevlin,MaartenBosma,GauravMishra,Adam\n      Roberts,PaulBarham,HyungWonChung,CharlesSutton,SebastianGehrmann,etal. Palm:\n      Scalinglanguagemodelingwithpathways. JournalofMachineLearningResearch,24(240):1\u2013\n     113, 2023.\n [7]  Aidan Clark, Diego de Las Casas, Aurelia Guy, Arthur Mensch, Michela Paganini, Jordan\n      Hoffmann, Bogdan Damoc, Blake Hechtman, Trevor Cai, Sebastian Borgeaud, et al. Unified\n      scaling laws for routed language models.  In International conference on machine learning,\n      pages 4057\u20134086. PMLR, 2022.\n [8]  Christopher Clark, Kenton Lee, Ming-Wei Chang, Tom Kwiatkowski, Michael Collins, and\n      KristinaToutanova. BoolQ:Exploringthesurprisingdifficultyofnaturalyes/noquestions. In\n      Proceedings of the 2019 Conference of the North American Chapter of the Association for\n     ComputationalLinguistics: HumanLanguageTechnologies,Volume1(LongandShortPapers),\n      pages 2924\u20132936, 2019.\n [9]  Peter Clark, Isaac Cowhey, Oren Etzioni, Tushar Khot, Ashish Sabharwal, Carissa Schoenick,\n      andOyvindTafjord. Thinkyouhavesolvedquestionanswering? tryARC,theAI2reasoning\n      challenge. arXiv preprint arXiv:1803.05457, 2018.\n[10] KarlCobbe, VineetKosaraju,MohammadBavarian, MarkChen, HeewooJun, LukaszKaiser,\n      Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, et al. Training"
+    },
+    {
+        "type": "qna",
+        "question": "1. What novel architecture does Jamba combine, and what additional modules does it incorporate?",
+        "answer": "Jamba combines an architecture of Attention and Mamba layers with MoE (Mixture of Experts) modules."
+    },
+    {
+        "type": "qna",
+        "question": "2. What is the goal of releasing smaller-scale model checkpoints as mentioned in the text?",
+        "answer": "The goal is to facilitate research and allow for experimentation with different design choices in hybrid attention-state-space models."
+    },
+    {
+        "type": "qna",
+        "question": "3. How many total available parameters does the largest model of Jamba support, and what is its context length capability?",
+        "answer": "The largest model supports 52 billion total available parameters and can handle context lengths of up to 256,000 tokens."
+    },
+    {
+        "type": "qna",
+        "question": "4. According to the text, do all existing large-scale models use some form of explicit position information?",
+        "answer": "Yes, despite some evidence suggesting that Transformer decoder models do not need positional encodings, all existing large-scale models use some form of explicit position information."
+    },
+    {
+        "type": "qna",
+        "question": "5. What standardized evaluation does the paper titled \"L-Eval\" promote, and when was it published?",
+        "answer": "The paper \"L-Eval\" promotes instituting standardized evaluation for long-context language models and was published in 2023."
+    },
+    {
+        "type": "qna",
+        "question": "6. What conference was the paper \"PIQA: Reasoning about physical commonsense in natural language\" presented at, including the year and volume?",
+        "answer": "The PIQA paper was presented at the AAAI Conference on Artificial Intelligence in 2020, volume 34."
+    },
+    {
+        "type": "qna",
+        "question": "7. What is the focus of the BoolQ study mentioned in the references?",
+        "answer": "The BoolQ study explores the surprising difficulty of natural yes/no questions."
+    },
+    {
+        "type": "qna",
+        "question": "8. What is ARC and why is it significant according to the reference list?",
+        "answer": "ARC stands for the AI2 Reasoning Challenge, which challenges models on question answering and highlights the difficulty in achieving strong performance, thereby questioning if we have really solved question answering."
+    },
+    {
+        "type": "doc",
+        "document": "uistics: HumanLanguageTechnologies,Volume1(LongandShortPapers),\n      pages 2924\u20132936, 2019.\n [9]  Peter Clark, Isaac Cowhey, Oren Etzioni, Tushar Khot, Ashish Sabharwal, Carissa Schoenick,\n      andOyvindTafjord. Thinkyouhavesolvedquestionanswering? tryARC,theAI2reasoning\n      challenge. arXiv preprint arXiv:1803.05457, 2018.\n[10] KarlCobbe, VineetKosaraju,MohammadBavarian, MarkChen, HeewooJun, LukaszKaiser,\n      Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, et al. Training verifiers to\n      solve math word problems. arXiv preprint arXiv:2110.14168, 2021.\n[11] Hugging   Face.        Open   LLM   leaderboard.        https://huggingface.co/spaces/\n      HuggingFaceH4/open_llm_leaderboard, 2024.\n[12] YassirFathullah,ChunyangWu,YuanShangguan,JuntengJia,WenhanXiong,JayMahadeokar,\n      ChunxiLiu,YangyangShi,OzlemKalinli,MikeSeltzer,andMarkJ.F.Gales. Multi-headstate\n      spacemodelforspeechrecognition. InProceedingsofINTERSPEECH2023,pages241\u2013245,\n      2023.\n[13] William Fedus, Barret Zoph, and Noam Shazeer.  Switch transformers:  Scaling to trillion\n      parameter models with simple and efficient sparsity. Journal of Machine Learning Research,\n      23(120):1\u201339, 2022.\n[14] Daniel Y Fu, Tri Dao, Khaled Kamal Saab, Armin W Thomas, Atri Rudra, and Christopher Re.\n      Hungryhungryhippos: Towardslanguagemodelingwithstatespacemodels. InTheEleventh\n      International Conference on Learning Representations, 2022.\n[15] Philip Gage. A new algorithm for data compression. The C Users Journal, 12(2):23\u201338, 1994.\n                                                      13[16] Albert Gu and Tri Dao. Mamba: Linear-time sequence modeling with selective state spaces.\n      arXiv preprint arXiv:2312.00752, 2023.\n[17] AlbertGu,KaranGoel,andChristopherRe. Efficientlymodelinglongsequenceswithstructured\n      state spaces. InInternational Conference on Learning Representations, 2021.\n[18] Albert Gu,Isys Johnson,Karan Goel, KhaledSaab, Tri Dao, AtriRudra, and Christopher R\u00e9.\n      Combiningrecurrent,convolutional,andcontinuous-timemodelswithlinearstatespacelayers.\n     Advances in neural information processing systems, 34:572\u2013585, 2021.\n[19] Adi Haviv, Ori Ram, Ofir Press, Peter Izsak, and Omer Levy. Transformer language models\n      withoutpositionalencodingsstilllearnpositionalinformation. In FindingsoftheAssociation\n      for Computational Linguistics: EMNLP 2022, pages 1382\u20131390, 2022.\n[20] Dan Hendrycks, Collin Burns, Steven Basart, Andy Zou, Mantas Mazeika, Dawn Song, and\n      Jacob Steinhardt.  Measuring massive multitask language understanding.  In International\n      Conference on Learning Representations, 2020.\n[21] DanHendrycks,CollinBurns,AnyaChen,andSpencerBall. CUAD:Anexpert-annotatedNLP\n      datasetforlegalcontractreview. InThirty-fifthConferenceonNeuralInformationProcessing\n      Systems Datasets and Benchmarks Track (Round 1), 2021.\n[22] Albert Q Jiang, Alexandre Sablayrolles, Arthur Mensch, Chris Bamford, Devendra Singh\n      Chaplot, Diego de las Casas, Florian Bressand, Gianna Lengyel, Guillaume Lample, Lucile\n      Saulnier, et al. Mistral 7b. arXiv preprint arXiv:2310.06825, 2023.\n[23] Albert Q Jiang, Alexandre Sablayrolles, Antoine Roux, Arthur Mensch, Blanche Savary, Chris\n      Bamford,DevendraSinghChaplot,DiegodelasCasas,EmmaBouHanna,FlorianBressand,\n      et al. Mixtral of experts. arXiv preprint arXiv:2401.04088, 2024.\n[24] Greg Kamradt.    Needle in a haystack - pressure testing llms.   https://github.com/\n      gkamradt/LLMTest_NeedleInAHaystack/, 2023.\n[25] Tomas Kocisky, Jonathan Schwarz, Phil Blunsom, Chris Dyer, Karl Moritz Hermann, Ga-\n      bor Melis, and Edward Grefenstette.  The NarrativeQA reading comprehension challenge.\n     Transactions of the Association for Computational Linguistics, 6:317\u2013328, 2018.\n[26] TomKwiatkowski,JennimariaPalomaki,OliviaRedfield,MichaelCollins,AnkurParikh,Chris\n      Alberti,DanielleEpstein,IlliaPolosukhin,JacobDevlin,KentonLee,etal. Naturalquestions: a"
+    },
+    {
+        "type": "doc",
+        "document": "gkamradt/LLMTest_NeedleInAHaystack/, 2023.\n[25] Tomas Kocisky, Jonathan Schwarz, Phil Blunsom, Chris Dyer, Karl Moritz Hermann, Ga-\n      bor Melis, and Edward Grefenstette.  The NarrativeQA reading comprehension challenge.\n     Transactions of the Association for Computational Linguistics, 6:317\u2013328, 2018.\n[26] TomKwiatkowski,JennimariaPalomaki,OliviaRedfield,MichaelCollins,AnkurParikh,Chris\n      Alberti,DanielleEpstein,IlliaPolosukhin,JacobDevlin,KentonLee,etal. Naturalquestions: a\n      benchmark for question answering research. Transactions of the Association for Computational\n      Linguistics, 7:452\u2013466, 2019.\n[27] Stephanie Lin, Jacob Hilton, and Owain Evans. TruthfulQA: Measuring how models mimic\n      humanfalsehoods. InProceedingsofthe60thAnnualMeetingoftheAssociationforCompu-\n      tational Linguistics (Volume 1: Long Papers), pages 3214\u20133252, Dublin, Ireland, May 2022.\n      Association for Computational Linguistics.\n[28] AndrewMaas,RaymondEDaly,PeterTPham,DanHuang,AndrewYNg,andChristopher\n      Potts. Learningwordvectorsforsentimentanalysis. InProceedingsofthe49thannualmeeting\n      oftheassociationforcomputationallinguistics: Humanlanguagetechnologies,pages142\u2013150,\n      2011.\n[29] SabrinaJ Mielke,ZaidAlyafeai, ElizabethSalesky, ColinRaffel,MananDey,MatthiasGall\u00e9,\n      Arun Raja, Chenglei Si, Wilson Y Lee, Beno\u00eet Sagot, et al.   Between words and charac-\n      ters: A brief history of open-vocabulary modeling and tokenization in NLP. arXiv preprint\n      arXiv:2112.10508, 2021.\n[30] SewonMin,XinxiLyu,AriHoltzman,MikelArtetxe,MikeLewis,HannanehHajishirzi,and\n      Luke Zettlemoyer.  Rethinking the role of demonstrations: What makes in-context learning\n      work?  In Proceedings of the 2022 Conference on Empirical Methods in Natural Language\n      Processing, pages 11048\u201311064, 2022.\n                                                      14[31] Catherine Olsson, Nelson Elhage, Neel Nanda, Nicholas Joseph, Nova DasSarma, Tom\n      Henighan, Ben Mann, Amanda Askell, Yuntao Bai, Anna Chen, et al.  In-context learning\n      and induction heads. arXiv preprint arXiv:2209.11895, 2022.\n[32] Jongho Park, Jaeseung Park, Zheyang Xiong, Nayoung Lee, Jaewoong Cho, Samet Oymak,\n      KangwookLee, andDimitrisPapailiopoulos. Canmambalearnhowtolearn? a comparative\n      study on in-context learning tasks. arXiv preprint arXiv:2402.04248, 2024.\n[33] Jonathan Pilault, Mahan Fathi, Orhan Firat, Christopher Pal, Pierre-Luc Bacon, and Ross\n      Goroshin.  Block-state transformers.  In Thirty-seventh Conference on Neural Information\n      Processing Systems, 2023.\n[34] Maciej Pi\u00f3ro, Kamil Ciebiera, Krystian Kr\u00f3l, Jan Ludziejewski, and Sebastian Jaszczur.\n      MoE-Mamba: Efficient selective state space models with mixture of experts. arXiv preprint\n      arXiv:2401.04081, 2024.\n[35] Michael Poli, Stefano Massaroli, Eric Nguyen, Daniel Y Fu, Tri Dao, Stephen Baccus, Yoshua\n      Bengio,StefanoErmon,andChristopherR\u00e9. Hyenahierarchy: Towardslargerconvolutional\n      language models.  In International Conference on Machine Learning, pages 28043\u201328078.\n      PMLR, 2023.\n[36] Michael Poli, Jue Wang, Stefano Massaroli, Jeffrey Quesnelle, RyanCarlow, Eric Nguyen, and\n      ArminThomas. StripedHyena: MovingBeyondTransformerswithHybridSignalProcessing\n      Models. https://github.com/togethercomputer/stripedhyena, 2023.\n[37] Keisuke Sakaguchi,Ronan LeBras,Chandra Bhagavatula, andYejinChoi. WinoGrande: An\n      adversarial winograd schema challenge at scale. In Proceedings of the AAAI Conference on\n     Artificial Intelligence, volume 34, pages 8732\u20138740, 2020.\n[38] GeorgeSaon,AnkitGupta,andXiaodongCui. Diagonalstatespaceaugmentedtransformers\n      for speech recognition. In ICASSP 2023-2023 IEEE International Conference on Acoustics,\n      Speech and Signal Processing (ICASSP), pages 1\u20135. IEEE, 2023.\n[39] Rico Sennrich, Barry Haddow, and Alexandra Birch.   Neural machine translation of rare\n      words withsubwordunits. InProceedingsof the"
+    },
+    {
+        "type": "qna",
+        "question": "1. What is the title of the reading comprehension challenge discussed in the 2018 Transactions of the Association for Computational Linguistics publication authored by Tomas Kocisky and others?",
+        "answer": "The title of the reading comprehension challenge is \"The NarrativeQA reading comprehension challenge.\""
+    },
+    {
+        "type": "qna",
+        "question": "2. What is the main focus of the Natural Questions project, published in the Transactions of the Association for Computational Linguistics in 2019?",
+        "answer": "The main focus of the Natural Questions project is to serve as a benchmark for question answering research."
+    },
+    {
+        "type": "qna",
+        "question": "3. What is the purpose of the \"TruthfulQA\" mentioned in the Association for Computational Linguistics proceedings from May 2022?",
+        "answer": "The purpose of \"TruthfulQA\" is to measure how models mimic human falsehoods."
+    },
+    {
+        "type": "qna",
+        "question": "4. Who led the study on learning word vectors for sentiment analysis, as discussed in the Proceedings of the 49th annual meeting of the association for computational linguistics in 2011?",
+        "answer": "Andrew Maas, Raymond E Daly, Peter T Pham, Dan Huang, Andrew Y Ng, and Christopher Potts led the study."
+    },
+    {
+        "type": "qna",
+        "question": "5. What is the subject of the arXiv preprint titled \"Between words and characters: A brief history of open-vocabulary modeling and tokenization in NLP\" from 2021?",
+        "answer": "The subject is the history of open-vocabulary modeling and tokenization in natural language processing (NLP)."
+    },
+    {
+        "type": "qna",
+        "question": "6. What significant topic is reviewed concerning in-context learning in the 2022 EMNLP proceedings?",
+        "answer": "The significant topic reviewed is what makes in-context learning work and the role of demonstrations."
+    },
+    {
+        "type": "qna",
+        "question": "7. Describe the focus of the arXiv preprint \"In-context learning and induction heads\" from 2022.",
+        "answer": "The focus is on in-context learning and the use of induction heads to enhance that process."
+    },
+    {
+        "type": "qna",
+        "question": "8. What is being examined in the comparative study titled \"Can mamba learn how to learn?\" according to an arXiv preprint projected for 2024?",
+        "answer": "The study examines mamba's capability to engage in in-context learning tasks."
+    },
+    {
+        "type": "qna",
+        "question": "9. Identify the topic of the \"Hyena Hierarchy\" presentation at the International Conference on Machine Learning in 2023.",
+        "answer": "The topic is \"Towards larger convolutional language models\" and is part of the presentation \"Hyena Hierarchy.\""
+    },
+    {
+        "type": "qna",
+        "question": "10. What technological advancement is discussed in the 2023 GitHub repository for \"StripedHyena\"?",
+        "answer": "The advancement discussed involves moving beyond transformers with hybrid signal processing models."
+    },
+    {
+        "type": "doc",
+        "document": "t scale. In Proceedings of the AAAI Conference on\n     Artificial Intelligence, volume 34, pages 8732\u20138740, 2020.\n[38] GeorgeSaon,AnkitGupta,andXiaodongCui. Diagonalstatespaceaugmentedtransformers\n      for speech recognition. In ICASSP 2023-2023 IEEE International Conference on Acoustics,\n      Speech and Signal Processing (ICASSP), pages 1\u20135. IEEE, 2023.\n[39] Rico Sennrich, Barry Haddow, and Alexandra Birch.   Neural machine translation of rare\n      words withsubwordunits. InProceedingsof the 54thAnnual Meetingof the Association for\n      Computational Linguistics (Volume 1: Long Papers), pages 1715\u20131725, 2016.\n[40]Noam Shazeer. Glu variants improve transformer.        arXiv preprint arXiv:2002.05202, 2020.\n[41] NoamShazeer,AzaliaMirhoseini,KrzysztofMaziarz,AndyDavis,QuocLe,GeoffreyHinton,\n      and Jeff Dean.  Outrageously large neural networks: The sparsely-gated mixture-of-experts\n      layer. In International Conference on Learning Representations, 2017.\n[42] Jianlin Su, Murtadha Ahmed, Yu Lu, Shengfeng Pan, Wen Bo, and Yunfeng Liu. Roformer:\n      Enhanced transformer with rotary position embedding. Neurocomputing, 568:127063, 2024.\n[43] Mirac Suzgun, Nathan Scales, Nathanael Sch\u00e4rli, Sebastian Gehrmann, Yi Tay, Hyung Won\n      Chung, Aakanksha Chowdhery, Quoc Le, Ed Chi, Denny Zhou, et al.  Challenging BIG-\n      Benchtasksandwhetherchain-of-thoughtcansolvethem. InFindingsoftheAssociationfor\n      Computational Linguistics: ACL 2023, pages 13003\u201313051, 2023.\n[44] Gemma Team, Thomas Mesnard, Cassidy Hardin, Robert Dadashi, Surya Bhupatiraju, Shreya\n      Pathak,LaurentSifre,MorganeRivi\u00e8re,MihirSanjayKale,JulietteLove,etal. Gemma: Open\n      models based on gemini research and technology. arXiv preprint arXiv:2403.08295, 2024.\n[45] HugoTouvron, LouisMartin,KevinStone,PeterAlbert,AmjadAlmahairi, YasmineBabaei,\n      Nikolay Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti Bhosale, et al. Llama 2: Open\n      foundation and fine-tuned chat models. arXiv preprint arXiv:2307.09288, 2023.\n[46] AshishVaswani,NoamShazeer,NikiParmar,JakobUszkoreit,LlionJones,AidanNGomez,\n      \u0141ukaszKaiser,andIlliaPolosukhin. Attentionisallyouneed.  Advancesinneuralinformation\n      processing systems, 30, 2017.\n                                                      15[47] Rowan Zellers, Ari Holtzman, Yonatan Bisk, Ali Farhadi, and Yejin Choi. HellaSwag: Can\n      a machine really finish your sentence?   In Proceedings of the 57th Annual Meeting of the\n      Association for Computational Linguistics, pages 4791\u20134800, 2019.\n[48] Biao Zhang and Rico Sennrich. Root mean square layer normalization. Advances in Neural\n      Information Processing Systems, 32, 2019.\n[49] Barret Zoph, Irwan Bello, Sameer Kumar, Nan Du, Yanping Huang, Jeff Dean, Noam Shazeer,\n      and William Fedus. ST-MoE: Designing stableand transferable sparseexpertmodels. arXiv\n      preprint arXiv:2202.08906, 2022.\n[50] SimiaoZuo, Xiaodong Liu,Jian Jiao,Denis Charles,Eren Manavoglu, Tuo Zhao, andJianfeng\n      Gao. Efficient longsequence modelingvia state spaceaugmented transformer. arXiv preprint\n      arXiv:2212.08136, 2022.\n                                                        16"
+    },
+    {
+        "type": "qna",
+        "question": "Based on the given text which are predominantly citations and titles from various conferences and journals, it is difficult to generate specific exam questions without further context or content about what these papers discuss. However, I will attempt to create questions that could generally test a student's understanding of the gist or themes based on titles and authors.\n\n1. What is the main purpose of the Roformer as discussed by Jianlin Su and colleagues in their 2024 paper in Neurocomputing?",
+        "answer": "The main purpose of the Roformer is to enhance transformer architectures with rotary position embedding."
+    },
+    {
+        "type": "qna",
+        "question": "2. In what year did Shazeer et al. discuss the application of Glu variants to improve transformers, and where can you find the published work?",
+        "answer": "Glu variants were discussed in the year 2020, and the work can be found as a preprint on arXiv with the identifier arXiv:2002.05202."
+    },
+    {
+        "type": "qna",
+        "question": "3. Which conference featured the presentation on 'Diagonal state space augmented transformers for speech recognition' by Saon, Gupta, and Cui, and in what year?",
+        "answer": "The presentation was featured at the ICASSP - IEEE International Conference on Acoustics, Speech and Signal Processing in the year 2023."
+    },
+    {
+        "type": "qna",
+        "question": "4. Describe the approach and context of the paper \"Outrageously large neural networks: The sparsely-gated mixture-of-experts layer\" by Shazeer et al.",
+        "answer": "The paper discusses the design and implementation of outrageously large neural network architectures using a sparsely-gated mixture-of-experts layer to improve computational efficiency and scalability."
+    },
+    {
+        "type": "qna",
+        "question": "5. What innovative model did the Gemma team introduce based on their 2024 research, and what is the focus of this model?",
+        "answer": "The Gemma team introduced open models based on gemini research and technology, focusing on enhancing machine learning and AI capabilities through innovative architecture designs."
+    },
+    {
+        "type": "qna",
+        "question": "6. What are the main contributions of the paper \"Attention is all you need\" by Vaswani et al., published in 2017?",
+        "answer": "The main contributions include the introduction of the transformer model, a novel architecture that relies solely on attention mechanisms, significantly impacting subsequent developments in natural language processing."
+    },
+    {
+        "type": "qna",
+        "question": "7. Explain the concept and expected impact of \"ST-MoE: Designing stable and transferable sparse expert models\" as proposed by Zoph, Bello, and colleagues.",
+        "answer": "The concept involves designing sparse expert models that are both stable and easily transferable across different tasks and domains, aiming to improve efficiency and effectiveness in machine learning applications."
+    },
+    {
+        "type": "qna",
+        "question": "8. What challenge regarding machine understanding and natural language is addressed by the HellaSwag dataset, as per the work of Zellers et al.?",
+        "answer": "The HellaSwag dataset challenges machine understanding and natural language models to finish sentences, testing their ability to predict contextual endings in a realistic and coherent manner."
+    }
+]
