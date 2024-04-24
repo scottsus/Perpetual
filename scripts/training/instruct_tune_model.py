@@ -36,6 +36,7 @@ def begin_instruction_tuning():
     
     # Requires notebook_login()
     model.push_to_hub(INSTRUCT_MODEL_HF_NAME)
+    tokenizer.push_to_hub(INSTRUCT_MODEL_HF_NAME)
     print(f"✅ Instruction-tuning success, find the model on `{INSTRUCT_MODEL_HF_NAME}`")
 
 if __name__ == "__main__":

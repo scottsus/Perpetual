@@ -6,7 +6,12 @@ def stream(model, tokenizer, device, query, max_new_tokens=20):
         [prompt.format(query, "", "")],
         return_tensors="pt"
     ).to(device)
-    streamer = TextStreamer(tokenizer)
+
+    streamer = TextStreamer(
+        tokenizer,
+        skip_prompt=True,
+        skip_special_tokens=True,
+    )
     _ = model.generate(
         **inputs,
         max_new_tokens=max_new_tokens,

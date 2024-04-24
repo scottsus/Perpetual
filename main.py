@@ -15,8 +15,8 @@ def run_inference():
     try:
         print("Welcome to scottsus/mamba's amazing language model 👋")
         while True:
-            query = input("> ")
-            stream(model, tokenizer, device, query, max_new_tokens=100)
+            query = input("\n> ")
+            stream(model, tokenizer, device, query)
     except KeyboardInterrupt:
         print("👋 Goodbye!")
 

@@ -1,4 +1,4 @@
-MODEL_SIZE = "1.4b"
+MODEL_SIZE = "2.8b"
 
 BASE_HF_MODEL = f"state-spaces/mamba-{MODEL_SIZE}-hf"
 
