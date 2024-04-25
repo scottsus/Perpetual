@@ -1,0 +1,4 @@
+langchain-chroma==0.1.0
+langchain-community==0.0.34
+langchain-core==0.1.45
+sentence-transformers==2.7.0

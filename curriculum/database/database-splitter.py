@@ -6,6 +6,7 @@ import json
 import argparse
 import asyncio
 import re
+from tqdm.asyncio import tqdm_asyncio
 from curriculum.teacher.model import Model
 from curriculum.teacher.prompt import *
 from curriculum.teacher.sep import QNA_SEPARATOR, LIST_SEPARATOR
@@ -71,22 +72,29 @@ def load_and_chunk_data() -> Dataset:
         'specTableContent_right'
     ])
 
-async def generate_questions_and_answers(model: Model, raw_dataset: List[str]) -> List:
-    tasks = [model.new_async_request(f"""Product title: {product["title"]}\nProduct description: {product["description"]}""") for product in raw_dataset]
-    results = await asyncio.gather(*tasks)
+async def generate_questions_and_answers(model: Model, chunks: List[str]) -> List:
+    tasks = [model.new_async_request(f"""Product title: {product["title"]}\nProduct description: {product["description"]}""", is_train=True) for product in chunks]
+    results = await tqdm_asyncio.gather(*tasks)
 
     dataset = []
     total_input_tokens, total_output_tokens = 0, 0
-    for chunk, (content, input_tokens, output_tokens) in zip(raw_dataset, results):
+    for chunk, (questions, input_tokens, output_tokens) in zip(chunks, results):
         dataset.append({ "type": "doc", "document": chunk })
         
-        qna_pairs = content.split(LIST_SEPARATOR)
-        for qna_pair in qna_pairs:
-            pair = qna_pair.split(QNA_SEPARATOR)
-            if (len(pair) != 2):
+        if questions is None:
+            continue
+        for pair in questions:
+            try:
+                question, answer = pair["question"], pair["answer"]
+            except Exception as e:
+                print(f"generate_open_ended_questions: {str(e)}")
                 continue
-            question, answer = pair[0].strip(), pair[1].strip()
-            dataset.append({ "type": "qna", "question": question, "answer": answer })
+
+            dataset.append(dict(
+                type="qna",
+                question=question,
+                answer=answer,
+            ))
         
         total_input_tokens += input_tokens
         total_output_tokens += output_tokens
@@ -95,11 +103,11 @@ async def generate_questions_and_answers(model: Model, raw_dataset: List[str]) -
     return dataset
 
 async def construct_dataset_curriculum():
-    raw_dataset = load_and_chunk_data().select(range(20))
+    raw_dataset = load_and_chunk_data().select(range(500))
     model = Model()
     dataset = await generate_questions_and_answers(model, raw_dataset)
     
-    target_file_name = "curriculum/database-train.json"
+    target_file_name = "curriculum/database/train.json"
     with open(target_file_name, 'w') as f:
         json.dump(dataset, f, indent=4)
         print(f"Written to {target_file_name}")
@@ -107,8 +115,8 @@ async def construct_dataset_curriculum():
 def upload_chunked_dataset():
     raw_dataset = load_and_chunk_data()
     raw_dataset.push_to_hub("slyq/wdc-products-chunked", split="train")
-    # dataset = load_dataset("curriculum/database-train.json")
-    # dataset.push_to_hub("slyq/wdc-products-qna", split="train")
+    # dataset = load_dataset("curriculum/database")
+    # dataset.push_to_hub("slyq/wdc-products-qna")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
