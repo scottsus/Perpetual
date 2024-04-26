@@ -5,7 +5,7 @@ from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_community.document_loaders import HuggingFaceDatasetLoader
 
 model_name = "BAAI/bge-large-en-v1.5"
-model_kwargs = {"device": "cpu"}
+model_kwargs = {"device": "cuda"}
 encode_kwargs = {"normalize_embeddings": True}
 
 class Retriever:
