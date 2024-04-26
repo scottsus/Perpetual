@@ -72,7 +72,7 @@ def load_and_chunk_data() -> Dataset:
         'specTableContent_right'
     ])
 
-async def generate_questions_and_answers(model: Model, chunks: List[str]) -> List:
+async def generate_open_ended_questions(model: Model, chunks: List[str]) -> List:
     tasks = [model.new_async_request(f"""Product title: {product["title"]}\nProduct description: {product["description"]}""", is_train=True) for product in chunks]
     results = await tqdm_asyncio.gather(*tasks)
 
@@ -102,15 +102,36 @@ async def generate_questions_and_answers(model: Model, chunks: List[str]) -> Lis
     print("Total tokens used:", total_input_tokens + total_output_tokens)
     return dataset
 
-async def construct_dataset_curriculum():
-    raw_dataset = load_and_chunk_data().select(range(500))
-    model = Model()
-    dataset = await generate_questions_and_answers(model, raw_dataset)
+async def generate_multiple_choice_questions(model: Model, chunks: List[str]) -> List:
+    tasks = [model.new_async_request(f"""Product title: {product["title"]}\nProduct description: {product["description"]}""", is_train=False) for product in chunks]
+    results = await tqdm_asyncio.gather(*tasks)
+
+    dataset = []
+    total_input_tokens, total_output_tokens = 0, 0
+    for questions, input_tokens, output_tokens in results:
+        if questions is None:
+            continue
+        dataset += questions
+        total_input_tokens += input_tokens
+        total_output_tokens += output_tokens
     
-    target_file_name = "curriculum/database/train.json"
+    print("Total tokens used:", total_input_tokens + total_output_tokens)
+    return dataset
+
+async def construct_database_curriculum(is_train: bool = True):
+    raw_dataset = load_and_chunk_data().select(range(10,500))
+    model = Model()
+
+    if is_train:
+        dataset = await generate_open_ended_questions(model, raw_dataset)
+        target_file_name = "curriculum/database/train.json"
+    else:
+        dataset = await generate_multiple_choice_questions(model, raw_dataset)
+        target_file_name = "curriculum/database/test.json"
+    
     with open(target_file_name, 'w') as f:
         json.dump(dataset, f, indent=4)
-        print(f"Written to {target_file_name}")
+        print(f"💰 Written to {target_file_name}")
 
 def upload_chunked_dataset():
     raw_dataset = load_and_chunk_data()
@@ -125,4 +146,4 @@ if __name__ == "__main__":
     if args.upload:
         upload_chunked_dataset()
     else:
-        asyncio.run(construct_dataset_curriculum())
+        asyncio.run(construct_database_curriculum(is_train=False))
