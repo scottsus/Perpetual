@@ -48,10 +48,23 @@ def preprocess_batched(dataset):
         "description": chunked_descriptions,
     }
 
-def load_and_chunk_data() -> Dataset:
+def preprocess_batched_combined(dataset):
+    # merge lefts and rights for titles and descriptions
+    ts = map(lambda l, r: clean_title((l + "; " if l is not None else "") + (r + "; " if r is not None else "")), dataset["title_left"], dataset["title_right"])
+    ds = map(lambda l, r: clean_description((l + "; " if l is not None else "") + (r + "; " if r is not None else "")), dataset["description_left"], dataset["description_right"])
+    chunks = []
+    # chunk for long descriptions (duplicate titles if the description is chunked up)
+    for title, description in zip(ts,ds):
+        description_chunks = [chunk for chunk in splitter.split_text(description) if len(chunk) >= MIN_DESCRIPTION_THRESHOLD]
+        chunks.extend([f"{title}\n{description}" for description in description_chunks])
+    return {
+        "text": chunks
+    }
+
+def load_and_chunk_data(combined=False) -> Dataset:
     d = load_dataset("wdc/products-2017", split="train")
 
-    return d.map(preprocess_batched, batched=True, remove_columns=[
+    return d.map(preprocess_batched_combined if combined else preprocess_batched, batched=True, remove_columns=[
         'pair_id',
         'label',
         'id_left',
@@ -133,17 +146,18 @@ async def construct_database_curriculum(is_train: bool = True):
         json.dump(dataset, f, indent=4)
         print(f"💰 Written to {target_file_name}")
 
-def upload_chunked_dataset():
-    raw_dataset = load_and_chunk_data()
-    raw_dataset.push_to_hub("slyq/wdc-products-chunked", split="train")
+def upload_chunked_dataset(combined=False):
+    raw_dataset = load_and_chunk_data(combined)
+    raw_dataset.push_to_hub("slyq/wdc-products-chunked", "combined" if combined else "default", split="train")
     # dataset = load_dataset("curriculum/database")
     # dataset.push_to_hub("slyq/wdc-products-qna")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", "--upload", action="store_true", help="Upload dataset instead of constructing dataset")
+    parser.add_argument("-c", "--combined", action="store_true", help="Upload chunked dataset with title and description combined")
     args = parser.parse_args()
     if args.upload:
-        upload_chunked_dataset()
+        upload_chunked_dataset(args.combined)
     else:
         asyncio.run(construct_database_curriculum(is_train=False))
