@@ -4,7 +4,6 @@ import openai
 import backoff
 from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
-# from curriculum.teacher.sep import QNA_SEPARATOR, LIST_SEPARATOR
 from typing import Tuple
 
 TRAIN_DATA_JSON_SCHEMA = {
@@ -32,6 +31,7 @@ TRAIN_DATA_JSON_SCHEMA = {
 TRAIN_SYSTEM_MESSAGE = f"""
 You are a world-class university professor constructing an exam.
 You are very knowledgable in a wide range of fields, and you construct great questions to test a student on the contents of the text.
+Given a piece of raw text, produce `questions`, a list of question and answer pairs of size 3-5.
 Additionally, you also generate corresponding answers so you can reference them later.
 
 A JSON schema is provided for your reference:
@@ -57,7 +57,7 @@ TEST_DATA_JSON_SCHEMA = {
 
 TEST_SYSTEM_MESSAGE = f"""
 You are a world-class university professor constructing an exam.
-Given a piece of raw text, produce `questions`, a list of question and answer pairs.
+Given a piece of raw text, produce `questions`, a list of question and answer pairs of size 3-5.
 Each question and answer pair contains:
  - a single question
  - 4 possible choices (A, B, C, D) of which only 1 is correct

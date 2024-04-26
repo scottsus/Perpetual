@@ -2,20 +2,24 @@
 Given some text (news article, research paper), generate a curriculum for knowledge injection.
 """
 
+import os
 import json
 import asyncio
 from pypdf import PdfReader
 from curriculum.teacher.model import Model
 from curriculum.teacher.prompt import *
-from curriculum.teacher.sep import QNA_SEPARATOR, LIST_SEPARATOR
 from typing import List
 
-TEXT_SOURCE = "https://arxiv.org/pdf/2403.19887.pdf"
-CHUNK_SIZE = 4_000
-OVERLAP = 500
+CHUNK_SIZE = 4096
+OVERLAP = 512
 
-def load_and_chunk_text() -> List[str]:
-    reader = PdfReader("curriculum/text/jamba.pdf")
+PAPERS_PATH = "curriculum/text/papers"
+
+def get_papers():
+    return os.listdir(PAPERS_PATH)
+
+def load_and_chunk_text(paper_path: str) -> List[str]:
+    reader = PdfReader(paper_path)
     
     raw_text = ""
     for page in reader.pages:
@@ -75,18 +79,22 @@ async def generate_multiple_choice_questions(model: Model, chunks: List[str]) ->
 
 async def construct_text_curriculum(is_train: bool = True):
     model = Model()
-    raw_chunks = load_and_chunk_text()
 
-    if is_train:
-        dataset = await generate_open_ended_questions(model, raw_chunks)
-        target_file_name = "curriculum/text/train.json"
-    else:
-        dataset = await generate_multiple_choice_questions(model, raw_chunks)
-        target_file_name = "curriculum/text/test.json"
+    papers = get_papers()
+    dataset = []
+    for paper in papers:
+        print(paper)
+        raw_chunks = load_and_chunk_text(f"{PAPERS_PATH}/{paper}")
+        if is_train:
+            dataset += await generate_open_ended_questions(model, raw_chunks)
+            target_file_name = "curriculum/text/train.json"
+        else:
+            dataset += await generate_multiple_choice_questions(model, raw_chunks)
+            target_file_name = "curriculum/text/test.json"
     
     with open(target_file_name, 'w') as f:
         json.dump(dataset, f, indent=4)
-        print(f"💰 Written to {target_file_name}")
+        print(f"💰 Written to {target_file_name} {len(dataset)} rows")
 
 if __name__ == "__main__":
     asyncio.run(construct_text_curriculum(False))
