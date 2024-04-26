@@ -5,10 +5,12 @@ Given some text (news article, research paper), generate a curriculum for knowle
 import os
 import json
 import asyncio
+import argparse
 from pypdf import PdfReader
 from curriculum.teacher.model import Model
 from curriculum.teacher.prompt import *
 from typing import List
+from datasets import Dataset
 
 CHUNK_SIZE = 4096
 OVERLAP = 512
@@ -96,5 +98,22 @@ async def construct_text_curriculum(is_train: bool = True):
         json.dump(dataset, f, indent=4)
         print(f"💰 Written to {target_file_name} {len(dataset)} rows")
 
+def upload_chunked_dataset():
+    papers = get_papers()
+    chunks = []
+    for paper in papers:
+        chunks.extend(load_and_chunk_text(f"{PAPERS_PATH}/{paper}"))
+    raw_dataset = {
+        "text": chunks
+    }
+    dataset = Dataset.from_dict(raw_dataset)
+    dataset.push_to_hub("slyq/papers-chunked", "combined", split="train")
+
 if __name__ == "__main__":
-    asyncio.run(construct_text_curriculum(False))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-u", "--upload", action="store_true", help="Upload dataset instead of constructing dataset")
+    args = parser.parse_args()
+    if args.upload:
+        upload_chunked_dataset()
+    else:
+        asyncio.run(construct_text_curriculum(False))
