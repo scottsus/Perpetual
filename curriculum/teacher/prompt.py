@@ -13,5 +13,3 @@ document_prompt = """Below is a piece of a document you want to learn about. Try
 
 ### Document:
 {}"""
-
-text_prompt = """{}"""

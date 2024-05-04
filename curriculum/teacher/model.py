@@ -41,27 +41,24 @@ A JSON schema is provided for your reference:
 TEST_DATA_JSON_SCHEMA = {
     "type": "object",
     "properties": {
-        "questions": {
-            "question": "string",
-            "choices": {
-                "type": "array",
-                "items": {
-                    "type": "string",
-                },
+        "question": "string",
+        "choices": {
+            "type": "array",
+            "items": {
+                "type": "string",
             },
-            "answer": "string",
         },
+        "answer": "string",
     },
     "required": [ "question, choices, answer" ],
 }
 
 TEST_SYSTEM_MESSAGE = f"""
-You are a world-class university professor constructing an exam.
-Given a piece of raw text, produce `questions`, a list of question and answer pairs of size 3-5.
-Each question and answer pair contains:
- - a single question
- - 4 possible choices (A, B, C, D) of which only 1 is correct
- - a correct answer -> this should be **only a single letter: the correct option**.
+You are a world-class university professor constructing an exam. You want to convert a curated question and answer pair into multiple choice format.
+Given a curated question and answer pair that is already correct, produce a JSON object which comprises of
+ - `question`: a single question
+ - `choices`: 4 possible choices (A, B, C, D) of which only 1 is correct
+ - `answer`: a correct answer -> this should be **only a single letter: the correct option**.
 
 A JSON schema is provided for your reference:
 {TEST_DATA_JSON_SCHEMA}
@@ -100,18 +97,19 @@ class Model:
             (prompt_tokens, completion_tokens) = self.get_token_usage(res)
 
             obj = json.loads(content)
-            questions = obj["questions"]
-            return (questions, prompt_tokens, completion_tokens)
+            if is_train:
+                questions = obj["questions"]
+                return (questions, prompt_tokens, completion_tokens)
+            return (obj, prompt_tokens, completion_tokens)
+            
         
         except KeyboardInterrupt:
             raise
         except (json.decoder.JSONDecodeError, TypeError) as e:
             print(f"Model.new_async_request: {str(e)}")
-            print(content)
             return (None, 0, 0)
         except Exception as e:
             print(f"Model.new_async_request: {str(e)}")
-            print(content)
             raise
     
     def get_token_usage(self, chat_completion: ChatCompletion) -> Tuple[int, int]:
@@ -123,7 +121,3 @@ class Model:
 
         return (prompt_tokens, completion_tokens)
     
-
-# import asyncio
-
-# asyncio.run(Model().new_async_request("The boiling point of Veritasium is 2000K."))

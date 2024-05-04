@@ -16,6 +16,7 @@ CHUNK_SIZE = 4096
 OVERLAP = 512
 
 PAPERS_PATH = "curriculum/text/papers"
+DATA_PATH = "curriculum/text/data"
 
 def get_papers():
     return os.listdir(PAPERS_PATH)
@@ -79,7 +80,7 @@ async def generate_multiple_choice_questions(model: Model, chunks: List[str]) ->
     print("Total tokens used:", total_input_tokens + total_output_tokens)
     return dataset
 
-async def construct_text_curriculum(is_train: bool = True):
+async def construct_text_curriculum():
     model = Model()
 
     papers = get_papers()
@@ -87,14 +88,51 @@ async def construct_text_curriculum(is_train: bool = True):
     for paper in papers:
         print(paper)
         raw_chunks = load_and_chunk_text(f"{PAPERS_PATH}/{paper}")
-        if is_train:
-            dataset += await generate_open_ended_questions(model, raw_chunks)
-            target_file_name = "curriculum/text/train.json"
-        else:
-            dataset += await generate_multiple_choice_questions(model, raw_chunks)
-            target_file_name = "curriculum/text/test.json"
+        dataset += await generate_open_ended_questions(model, raw_chunks)
+        target_file_name = f"{DATA_PATH}/train.json"
     
     with open(target_file_name, 'w') as f:
+        json.dump(dataset, f, indent=4)
+        print(f"💰 Written to {target_file_name} {len(dataset)} rows")
+
+async def construct_test_data():
+    model = Model()
+
+    train_data_path = f"{DATA_PATH}/train.json"
+    with open(train_data_path, 'r') as f:
+        train_data = json.load(f)
+    
+    qa_pairs = []
+    for entry in train_data:
+        entry_type = entry["type"]
+        if entry_type == "doc":
+            continue
+        question, answer = entry["question"], entry["answer"]
+        qa_pair = f"{question}: {answer}"
+        qa_pairs.append(qa_pair)
+    
+    sem = asyncio.Semaphore(10)
+
+    async def process_pair(qa_pair):
+        async with sem:
+            return await model.new_async_request(qa_pair, is_train=False)
+    
+    tasks = [process_pair(qa_pair) for qa_pair in qa_pairs]
+    results = await asyncio.gather(*tasks)
+    
+    dataset = []
+    total_input_tokens, total_output_tokens = 0, 0
+    for pair, input_tokens, output_tokens in results:
+        if pair is None:
+            continue
+        dataset.append(pair)
+        total_input_tokens += input_tokens
+        total_output_tokens += output_tokens
+
+    print("Total tokens used:", total_input_tokens + total_output_tokens)
+    
+    target_file_name = f"{DATA_PATH}/test.json"
+    with open(target_file_name, "w") as f:
         json.dump(dataset, f, indent=4)
         print(f"💰 Written to {target_file_name} {len(dataset)} rows")
 
@@ -111,9 +149,9 @@ def upload_chunked_dataset():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-u", "--upload", action="store_true", help="Upload dataset instead of constructing dataset")
+    parser.add_argument("-t", "--test", action="store_true", help="Construct test set instead of train set")
     args = parser.parse_args()
-    if args.upload:
-        upload_chunked_dataset()
+    if args.test:
+        asyncio.run(construct_test_data())
     else:
-        asyncio.run(construct_text_curriculum(False))
+        asyncio.run(construct_text_curriculum())

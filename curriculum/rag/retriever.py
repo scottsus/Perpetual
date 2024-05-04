@@ -6,8 +6,8 @@ from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_community.document_loaders import HuggingFaceDatasetLoader
 
 model_name = "BAAI/bge-large-en-v1.5"
-model_kwargs = {"device": "cuda" if torch.cuda.is_available() else "cpu"}
-encode_kwargs = {"normalize_embeddings": True}
+model_kwargs = { "device": "cuda" if torch.cuda.is_available() else "cpu" }
+encode_kwargs = { "normalize_embeddings": True }
 
 class Retriever:
     def __init__(self, database, subset=None, is_file=False):
