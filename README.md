@@ -37,7 +37,7 @@ $$
 Building on this, let $\mathcal{M'}$ be the instruct-tuned model that has undergone additional learning on the train split of $\mathcal{Q}$. We determine that the model successfully learned new factual knowledge if the following proposition holds:
 
 $$
-\mathcal{L}_{\mathcal{M'},\mathcal{Q}} > \mathcal{L}_{\mathcal{M},\mathcal{Q}}
+\mathcal{L}_{\mathcal{M'},\mathcal{Q}} \gt \mathcal{L}{\mathcal{M},\mathcal{Q}}
 $$
 
 In simpler terms, we say that the instruct-tuned LM $\mathcal{M'}$ has learned new information in the human sense if after undergoing further training, it gets more correct answers than its untrained version $\mathcal{M}$ on the same set of questions $\mathcal{Q}$, i.e.\ same knowledge base.
