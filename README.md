@@ -31,7 +31,7 @@ Let $\mathcal{M}$ be a regular instruct-tuned model. We denote $a_n = \mathcal{M
 We can then define a model $\mathcal{M}$'s accuracy score $\mathcal{L}$ on questions $\mathcal{Q}$ as
 
 $$
-\mathcal{L}_{\mathcal{M},\mathcal{Q}} := \frac{\operatorname{count}(q_n|a_n=c_n)}{N}
+\mathcal{L}_{\mathcal{M},\mathcal{Q}} := \frac{count(q_n|a_n=c_n)}{N}
 $$
 
 Building on this, let $\mathcal{M'}$ be the instruct-tuned model that has undergone additional learning on the train split of $\mathcal{Q}$. We determine that the model successfully learned new factual knowledge if the following proposition holds:
